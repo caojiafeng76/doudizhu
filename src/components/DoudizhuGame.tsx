@@ -1,0 +1,268 @@
+import { useState, useCallback, useEffect, useRef } from 'react'
+import type { GameState, AIDifficulty, PlayRecord } from '../game/types'
+import { createInitialState, placeBid, playCards, passTurn, startNewRound } from '../game/gameEngine'
+import { decideBid, aiPlayTurn } from '../game/ai'
+import { BidPanel } from './BidPanel'
+import { Hand } from './Hand'
+import { PlayArea } from './PlayArea'
+import { PlayerSeat } from './PlayerSeat'
+import { GameHeader } from './GameHeader'
+import { ScoreBoard } from './ScoreBoard'
+import { ResultModal } from './ResultModal'
+import { SoundEffects } from '../game/sounds'
+
+const AI_DELAY = 800
+
+export function DoudizhuGame() {
+  const [gameState, setGameState] = useState<GameState>(() => createInitialState('medium'))
+  const [selectedCardIds, setSelectedCardIds] = useState<number[]>([])
+
+  const humanPlayer = gameState.players[0]
+  const isHumanTurn = gameState.currentPlayerIndex === 0 && gameState.phase === 'playing'
+  const isHumanBidding = gameState.currentPlayerIndex === 0 && gameState.phase === 'bidding'
+
+  const soundEnabled = useRef(true)
+
+  const toggleCardSelection = useCallback((cardId: number) => {
+    if (soundEnabled.current) {
+      setSelectedCardIds(prev => {
+        const isSelected = prev.includes(cardId)
+        if (isSelected) {
+          SoundEffects.deselect()
+        } else {
+          SoundEffects.select()
+        }
+        return isSelected ? prev.filter(id => id !== cardId) : [...prev, cardId]
+      })
+    } else {
+      setSelectedCardIds(prev =>
+        prev.includes(cardId) ? prev.filter(id => id !== cardId) : [...prev, cardId]
+      )
+    }
+  }, [])
+
+  const handlePlay = useCallback(() => {
+    if (selectedCardIds.length === 0 || !isHumanTurn) return
+
+    const selectedCards = humanPlayer.hand.filter(c => selectedCardIds.includes(c.id))
+    const newState = playCards(gameState, 0, selectedCards)
+    if (newState !== gameState) {
+      if (soundEnabled.current) {
+        const comb = newState.playingState.playHistory[newState.playingState.playHistory.length - 1]?.combination
+        if (comb?.type === 'bomb' || comb?.type === 'rocket') {
+          SoundEffects.bomb()
+        } else {
+          SoundEffects.playCard()
+        }
+      }
+      setGameState(newState)
+      setSelectedCardIds([])
+    } else if (soundEnabled.current) {
+      SoundEffects.invalid()
+    }
+  }, [selectedCardIds, isHumanTurn, humanPlayer, gameState])
+
+  const handlePass = useCallback(() => {
+    if (!isHumanTurn) return
+    const newState = passTurn(gameState, 0)
+    if (newState !== gameState) {
+      if (soundEnabled.current) SoundEffects.pass()
+      setGameState(newState)
+      setSelectedCardIds([])
+    }
+  }, [isHumanTurn, gameState])
+
+  const handleBid = useCallback((bid: number) => {
+    if (!isHumanBidding) return
+    if (soundEnabled.current) SoundEffects.bid()
+    const newState = placeBid(gameState, 0, bid)
+    setGameState(newState)
+  }, [isHumanBidding, gameState])
+
+  const handleNewRound = useCallback(() => {
+    if (soundEnabled.current) SoundEffects.shuffle()
+    setGameState(prev => startNewRound(prev))
+    setSelectedCardIds([])
+  }, [])
+
+  const handleDifficultyChange = useCallback((difficulty: AIDifficulty) => {
+    setGameState(prev => ({ ...prev, aiDifficulty: difficulty }))
+  }, [])
+
+  useEffect(() => {
+    if (gameState.phase === 'bidding' && gameState.currentPlayerIndex !== 0) {
+      const timer = setTimeout(() => {
+        const aiPlayer = gameState.players[gameState.currentPlayerIndex]
+        const bid = decideBid(aiPlayer.hand, gameState.biddingState.highestBid, gameState.aiDifficulty)
+        setGameState(prev => placeBid(prev, prev.currentPlayerIndex, bid))
+      }, AI_DELAY)
+      return () => clearTimeout(timer)
+    }
+
+    if (gameState.phase === 'playing' && gameState.currentPlayerIndex !== 0) {
+      const timer = setTimeout(() => {
+        const aiPlayer = gameState.players[gameState.currentPlayerIndex]
+        const play = aiPlayTurn(
+          aiPlayer.hand,
+          gameState.playingState.lastPlay,
+          aiPlayer.isLandlord,
+          gameState.aiDifficulty
+        )
+
+        if (play) {
+          if (soundEnabled.current) SoundEffects.playCard()
+          setGameState(prev => playCards(prev, prev.currentPlayerIndex, play))
+        } else {
+          if (soundEnabled.current) SoundEffects.pass()
+          setGameState(prev => passTurn(prev, prev.currentPlayerIndex))
+        }
+      }, AI_DELAY)
+      return () => clearTimeout(timer)
+    }
+  }, [gameState.phase, gameState.currentPlayerIndex, gameState])
+
+  // Play win/lose sound when round ends
+  useEffect(() => {
+    if (gameState.phase === 'roundEnd' && soundEnabled.current) {
+      const winnerId = gameState.playingState.lastPlayerIndex
+      const isHumanWinner = winnerId === 0
+      const timer = setTimeout(() => {
+        if (isHumanWinner) {
+          SoundEffects.win()
+        } else {
+          SoundEffects.lose()
+        }
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [gameState.phase, gameState.playingState.lastPlayerIndex])
+
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex]
+
+  const isAITurn = (playerIndex: number) =>
+    (gameState.phase === 'playing' || gameState.phase === 'bidding') &&
+    gameState.currentPlayerIndex === playerIndex &&
+    playerIndex !== 0
+
+  // Get latest non-consecutive pass play for each player to show in front of them
+  const getLastPlayForPlayer = (playerId: number): PlayRecord | null => {
+    const history = gameState.playingState.playHistory
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].playerId === playerId) {
+        return history[i]
+      }
+    }
+    return null
+  }
+
+  return (
+    <div className="doudizhu-game">
+      <GameHeader
+        bottomCards={gameState.bottomCards}
+        multiplier={gameState.multiplier}
+        currentPlayerName={currentPlayer.name}
+        roundNumber={gameState.roundNumber}
+        aiDifficulty={gameState.aiDifficulty}
+        onDifficultyChange={handleDifficultyChange}
+        showBottom={gameState.phase === 'playing' || gameState.phase === 'roundEnd'}
+      />
+
+      <div className="table-container">
+        {/* Top - 电脑B (index 2) */}
+        <PlayerSeat
+          player={gameState.players[2]}
+          isCurrentTurn={gameState.currentPlayerIndex === 2}
+          position="top"
+          isThinking={isAITurn(2)}
+          lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(2) : null}
+          humanPlayerId={0}
+        />
+
+        {/* Left - 电脑A (index 1) */}
+        <PlayerSeat
+          player={gameState.players[1]}
+          isCurrentTurn={gameState.currentPlayerIndex === 1}
+          position="left"
+          isThinking={isAITurn(1)}
+          lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(1) : null}
+          humanPlayerId={0}
+        />
+
+        {/* Right - 电脑C (index 3) */}
+        <PlayerSeat
+          player={gameState.players[3]}
+          isCurrentTurn={gameState.currentPlayerIndex === 3}
+          position="right"
+          isThinking={isAITurn(3)}
+          lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(3) : null}
+          humanPlayerId={0}
+        />
+
+        {/* Center play area */}
+        <PlayArea />
+
+        {/* Bottom - 你 (index 0) - Hand at bottom edge, seat info above it */}
+        <Hand
+          cards={humanPlayer.hand}
+          selectedCardIds={selectedCardIds}
+          onCardClick={toggleCardSelection}
+          isHuman={true}
+        />
+
+        <div className="human-seat-wrapper">
+          <PlayerSeat
+            player={gameState.players[0]}
+            isCurrentTurn={gameState.currentPlayerIndex === 0}
+            position="bottom"
+            isThinking={false}
+            lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(0) : null}
+            humanPlayerId={0}
+          />
+        </div>
+
+        <ScoreBoard players={gameState.players} scores={gameState.scores} />
+
+        <div className="controls-bar">
+          {gameState.phase === 'bidding' && (
+            <BidPanel
+              currentBid={gameState.biddingState.highestBid}
+              onBid={handleBid}
+              disabled={!isHumanBidding}
+            />
+          )}
+
+          {gameState.phase === 'playing' && isHumanTurn && (
+            <div className="play-controls">
+              <button
+                className="play-btn"
+                onClick={handlePlay}
+                disabled={selectedCardIds.length === 0}
+              >
+                出牌
+              </button>
+              <button
+                className="pass-btn"
+                onClick={handlePass}
+                disabled={gameState.playingState.lastPlayerIndex === 0 || !gameState.playingState.lastPlay}
+              >
+                不出
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {gameState.phase === 'roundEnd' && (
+        <ResultModal
+          players={gameState.players}
+          landlordIndex={gameState.landlordIndex}
+          winnerId={gameState.playingState.lastPlayerIndex}
+          multiplier={gameState.multiplier}
+          scores={gameState.scores}
+          roundNumber={gameState.roundNumber}
+          onNewRound={handleNewRound}
+        />
+      )}
+    </div>
+  )
+}
