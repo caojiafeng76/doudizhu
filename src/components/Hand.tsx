@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Card as CardType } from '../game/types'
-import { selectCardRange } from '../game/selection.ts'
+import { selectCardRange, toggleCardRangeSelection } from '../game/selection.ts'
 import { Card } from './Card'
 
 interface HandProps {
@@ -28,6 +28,7 @@ export function Hand({
 }: HandProps) {
   const [dragStartId, setDragStartId] = useState<number | null>(null)
   const dragMovedRef = useRef(false)
+  const dragSelectionSnapshotRef = useRef<number[]>([])
   const { cardWidth, marginLeft, rowCount } = useMemo(() => {
     const cardWidth = HAND_CARD_WIDTH
     const rowCount = cards.length > HAND_WRAP_THRESHOLD ? Math.ceil(cards.length / HAND_WRAP_COLUMNS) : 1
@@ -57,13 +58,16 @@ export function Hand({
     if (button !== 0) return
     setDragStartId(cardId)
     dragMovedRef.current = false
+    dragSelectionSnapshotRef.current = selectedCardIds
   }
 
   const handleCardMouseEnter = (cardId: number) => {
     if (dragStartId === null) return
     const range = selectCardRange(orderedCardIds, dragStartId, cardId)
     dragMovedRef.current = range.length > 1 || range[0] !== dragStartId
-    onCardSelectionChange?.(range)
+    onCardSelectionChange?.(
+      toggleCardRangeSelection(orderedCardIds, dragSelectionSnapshotRef.current, dragStartId, cardId)
+    )
   }
 
   const handleCardClick = (cardId: number) => {
