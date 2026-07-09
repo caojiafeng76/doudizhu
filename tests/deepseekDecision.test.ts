@@ -39,14 +39,14 @@ describe('DeepSeek AI decision helpers', () => {
     const candidates = createPlayCandidates(hand, null)
 
     expect(candidates.map(candidate => candidate.id)).toEqual([
+      'play-1-2-3-4-5',
       'play-1',
       'play-2',
       'play-3',
       'play-4',
       'play-5',
-      'play-1-2-3-4-5',
     ])
-    expect(candidates[0].cards).toEqual([hand[0]])
+    expect(candidates[0].cards).toEqual(hand)
   })
 
   test('only accepts a DeepSeek play that references a legal candidate', () => {

@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, MouseEventHandler } from 'react'
 import type { Card as CardType } from '../game/types'
 import { getCardDisplay } from '../game/deck'
 
@@ -6,6 +6,9 @@ interface CardProps {
   card: CardType
   selected?: boolean
   onClick?: () => void
+  onMouseDown?: MouseEventHandler<HTMLDivElement>
+  onMouseEnter?: MouseEventHandler<HTMLDivElement>
+  onContextMenu?: MouseEventHandler<HTMLDivElement>
   faceDown?: boolean
   size?: 'small' | 'medium' | 'large'
   style?: CSSProperties
@@ -27,7 +30,17 @@ function getCardAssetPath(card: CardType): string {
   return `/cards/${rank}${SUIT_ASSET_CODES[card.suit]}.svg`
 }
 
-export function Card({ card, selected, onClick, faceDown, size = 'medium', style }: CardProps) {
+export function Card({
+  card,
+  selected,
+  onClick,
+  onMouseDown,
+  onMouseEnter,
+  onContextMenu,
+  faceDown,
+  size = 'medium',
+  style,
+}: CardProps) {
   const display = getCardDisplay(card)
   const sizeClass = size === 'small' ? 'card-small' : size === 'large' ? 'card-large' : ''
 
@@ -47,6 +60,9 @@ export function Card({ card, selected, onClick, faceDown, size = 'medium', style
     <div
       className={`card ${colorClass} ${sizeClass} ${selected ? 'selected' : ''} ${isJoker ? 'joker ' + jokerSizeClass : ''}`}
       onClick={onClick}
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
+      onContextMenu={onContextMenu}
       style={style}
     >
       <img className="card-face-image" src={getCardAssetPath(card)} alt={`${display.rank}${display.suit}`} draggable={false} />

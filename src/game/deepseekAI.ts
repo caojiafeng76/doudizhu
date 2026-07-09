@@ -65,6 +65,7 @@ export function createPlayCandidates(hand: Card[], lastPlay: Combination | null)
       }
     })
     .filter((candidate): candidate is PlayCandidate => candidate !== null)
+    .sort(comparePlayCandidates)
 }
 
 export function pickDeepSeekPlay(
@@ -133,6 +134,40 @@ function validateDeepSeekDecision(
 
 function canPlayerPass(state: GameState, playerId: number): boolean {
   return Boolean(state.playingState.lastPlay) && state.playingState.lastPlayerIndex !== playerId
+}
+
+function comparePlayCandidates(a: PlayCandidate, b: PlayCandidate): number {
+  const powerDiff = candidatePowerCost(a) - candidatePowerCost(b)
+  if (powerDiff !== 0) return powerDiff
+
+  const typeDiff = candidateTypeRank(a) - candidateTypeRank(b)
+  if (typeDiff !== 0) return typeDiff
+
+  const valueDiff = a.combination.mainValue - b.combination.mainValue
+  if (valueDiff !== 0) return valueDiff
+
+  return a.combination.cardCount - b.combination.cardCount
+}
+
+function candidatePowerCost(candidate: PlayCandidate): number {
+  if (candidate.combination.type === 'rocket') return 3
+  if (candidate.combination.type === 'bomb') return 2
+  if (candidate.combination.mainValue >= 15) return 1
+  return 0
+}
+
+function candidateTypeRank(candidate: PlayCandidate): number {
+  switch (candidate.combination.type) {
+    case 'straight': return 0
+    case 'consecutive_pairs': return 1
+    case 'single': return 2
+    case 'pair': return 3
+    case 'triple': return 4
+    case 'triple_pair': return 5
+    case 'airplane': return 6
+    case 'bomb': return 7
+    case 'rocket': return 8
+  }
 }
 
 function createDecisionPayload(options: BidDecisionOptions | PlayDecisionOptions) {

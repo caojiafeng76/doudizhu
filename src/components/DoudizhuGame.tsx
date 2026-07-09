@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { GameState, AIDifficulty, PlayRecord } from '../game/types'
+import type { Card, GameState, AIDifficulty, PlayRecord } from '../game/types'
 import { createInitialState, placeBid, playCards, passTurn, startNewRound } from '../game/gameEngine'
 import { decideBid, aiPlayTurn } from '../game/ai'
 import { createPlayCandidates, requestAIDecision } from '../game/deepseekAI.ts'
+import { canBeat, identifyCombination } from '../game/cardLogic.ts'
 import { BidPanel } from './BidPanel'
 import { Hand } from './Hand'
 import { PlayArea } from './PlayArea'
@@ -17,12 +18,33 @@ const AI_DELAY = 800
 export function DoudizhuGame() {
   const [gameState, setGameState] = useState<GameState>(() => createInitialState('medium'))
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([])
+  const [playNotice, setPlayNotice] = useState<string | null>(null)
 
   const humanPlayer = gameState.players[0]
   const isHumanTurn = gameState.currentPlayerIndex === 0 && gameState.phase === 'playing'
   const isHumanBidding = gameState.currentPlayerIndex === 0 && gameState.phase === 'bidding'
 
   const soundEnabled = useRef(true)
+  const noticeTimerRef = useRef<number | null>(null)
+
+  const showPlayNotice = useCallback((message: string) => {
+    setPlayNotice(message)
+    if (noticeTimerRef.current !== null) {
+      window.clearTimeout(noticeTimerRef.current)
+    }
+    noticeTimerRef.current = window.setTimeout(() => {
+      setPlayNotice(null)
+      noticeTimerRef.current = null
+    }, 1600)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current !== null) {
+        window.clearTimeout(noticeTimerRef.current)
+      }
+    }
+  }, [])
 
   const toggleCardSelection = useCallback((cardId: number) => {
     if (soundEnabled.current) {
@@ -42,10 +64,30 @@ export function DoudizhuGame() {
     }
   }, [])
 
-  const handlePlay = useCallback(() => {
-    if (selectedCardIds.length === 0 || !isHumanTurn) return
+  const getInvalidPlayMessage = useCallback((cards: Card[]) => {
+    if (!isHumanTurn) return '还没轮到你'
+    if (cards.length === 0) return '先选牌'
 
-    const selectedCards = humanPlayer.hand.filter(c => selectedCardIds.includes(c.id))
+    const combination = identifyCombination(cards)
+    if (!combination) return '牌型不符合规则'
+
+    const lastPlay = gameState.playingState.lastPlay
+    const mustBeatLastPlay = lastPlay && gameState.playingState.lastPlayerIndex !== 0
+    if (mustBeatLastPlay && !canBeat(combination, lastPlay)) {
+      return '压不过上家'
+    }
+
+    return '不能这样出'
+  }, [gameState.playingState.lastPlay, gameState.playingState.lastPlayerIndex, isHumanTurn])
+
+  const attemptPlayCards = useCallback((cardIds: number[]) => {
+    if (cardIds.length === 0) {
+      showPlayNotice('先选牌')
+      if (soundEnabled.current) SoundEffects.invalid()
+      return
+    }
+
+    const selectedCards = humanPlayer.hand.filter(c => cardIds.includes(c.id))
     const newState = playCards(gameState, 0, selectedCards)
     if (newState !== gameState) {
       if (soundEnabled.current) {
@@ -58,10 +100,22 @@ export function DoudizhuGame() {
       }
       setGameState(newState)
       setSelectedCardIds([])
-    } else if (soundEnabled.current) {
-      SoundEffects.invalid()
+      setPlayNotice(null)
+    } else {
+      if (soundEnabled.current) SoundEffects.invalid()
+      showPlayNotice(getInvalidPlayMessage(selectedCards))
     }
-  }, [selectedCardIds, isHumanTurn, humanPlayer, gameState])
+  }, [gameState, getInvalidPlayMessage, humanPlayer.hand, showPlayNotice])
+
+  const handlePlay = useCallback(() => {
+    attemptPlayCards(selectedCardIds)
+  }, [attemptPlayCards, selectedCardIds])
+
+  const handleCardContextPlay = useCallback((cardId: number) => {
+    const cardIds = selectedCardIds.includes(cardId) ? selectedCardIds : [cardId]
+    setSelectedCardIds(cardIds)
+    attemptPlayCards(cardIds)
+  }, [attemptPlayCards, selectedCardIds])
 
   const handlePass = useCallback(() => {
     if (!isHumanTurn) return
@@ -255,6 +309,8 @@ export function DoudizhuGame() {
           cards={humanPlayer.hand}
           selectedCardIds={selectedCardIds}
           onCardClick={toggleCardSelection}
+          onCardSelectionChange={setSelectedCardIds}
+          onCardContextPlay={handleCardContextPlay}
           isHuman={true}
         />
 
@@ -299,6 +355,12 @@ export function DoudizhuGame() {
             </div>
           )}
         </div>
+
+        {playNotice && (
+          <div className="play-notice" role="status" aria-live="polite">
+            {playNotice}
+          </div>
+        )}
       </div>
 
       {gameState.phase === 'roundEnd' && (

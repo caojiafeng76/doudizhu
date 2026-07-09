@@ -4,6 +4,10 @@ import { identifyCombination, canBeat } from './cardLogic'
 
 const PLAYER_NAMES = ['你', '电脑A', '电脑B', '电脑C']
 
+function nextPlayerIndex(currentIndex: number): number {
+  return (currentIndex + 3) % 4
+}
+
 export function createInitialState(aiDifficulty: AIDifficulty = 'medium'): GameState {
   const deck = createDeck()
   const { hands, bottomCards } = dealCards(deck)
@@ -62,7 +66,7 @@ export function placeBid(state: GameState, playerId: number, bid: number): GameS
     bidding.highestBidderIndex = playerId
   }
 
-  const nextBidder = (state.biddingState.currentBidderIndex + 1) % 4
+  const nextBidder = nextPlayerIndex(state.biddingState.currentBidderIndex)
 
   if (bidding.passCount === 3 && bidding.highestBidderIndex !== -1) {
     return assignLandlord(newState, bidding.highestBidderIndex)
@@ -143,7 +147,7 @@ export function playCards(state: GameState, playerId: number, cards: Card[]): Ga
     return finishRound(newState, playerId)
   }
 
-  newState.currentPlayerIndex = (state.currentPlayerIndex + 1) % 4
+  newState.currentPlayerIndex = nextPlayerIndex(state.currentPlayerIndex)
   return newState
 }
 
@@ -171,7 +175,7 @@ export function passTurn(state: GameState, playerId: number): GameState {
     }
   }
 
-  newState.currentPlayerIndex = (state.currentPlayerIndex + 1) % 4
+  newState.currentPlayerIndex = nextPlayerIndex(state.currentPlayerIndex)
   return newState
 }
 
