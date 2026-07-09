@@ -21,6 +21,7 @@ export function PlayerSeat({ player, isCurrentTurn, position, isThinking, lastPl
   const isHuman = player.id === humanPlayerId
   const showPlay = lastPlay && !lastPlay.passed && lastPlay.cards.length > 0
   const showPass = lastPlay && lastPlay.passed
+  const isBombPlay = lastPlay?.combination?.type === 'bomb' || lastPlay?.combination?.type === 'rocket'
 
   return (
     <div
@@ -45,9 +46,9 @@ export function PlayerSeat({ player, isCurrentTurn, position, isThinking, lastPl
         </div>
       )}
       {showPlay && (
-        <div className={`player-played-cards ${position} ${isHuman ? 'human' : ''}`}>
+        <div className={`player-played-cards ${position} ${isHuman ? 'human' : ''} ${isBombPlay ? 'bomb-play' : ''}`}>
           {lastPlay.cards.map(card => (
-            <Card key={card.id} card={card} size="small" />
+            <Card key={card.id} card={card} size="small" highlight={isBombPlay ? 'bomb' : undefined} />
           ))}
         </div>
       )}

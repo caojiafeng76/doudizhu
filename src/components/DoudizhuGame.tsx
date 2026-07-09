@@ -14,18 +14,29 @@ import { ResultModal } from './ResultModal'
 import { SoundEffects } from '../game/sounds'
 
 const AI_DELAY = 800
+const HUMAN_HAND_WRAP_THRESHOLD = 30
 
 export function DoudizhuGame() {
   const [gameState, setGameState] = useState<GameState>(() => createInitialState('medium'))
+  const [hasStarted, setHasStarted] = useState(false)
+  const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty>('medium')
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([])
   const [playNotice, setPlayNotice] = useState<string | null>(null)
+  const soundEnabled = useRef(true)
+  const noticeTimerRef = useRef<number | null>(null)
+
+  const startGame = useCallback(() => {
+    if (soundEnabled.current) SoundEffects.shuffle()
+    setGameState(createInitialState(selectedDifficulty))
+    setHasStarted(true)
+    setSelectedCardIds([])
+    setPlayNotice(null)
+  }, [selectedDifficulty])
 
   const humanPlayer = gameState.players[0]
   const isHumanTurn = gameState.currentPlayerIndex === 0 && gameState.phase === 'playing'
   const isHumanBidding = gameState.currentPlayerIndex === 0 && gameState.phase === 'bidding'
-
-  const soundEnabled = useRef(true)
-  const noticeTimerRef = useRef<number | null>(null)
+  const humanHandWrapped = humanPlayer.hand.length > HUMAN_HAND_WRAP_THRESHOLD
 
   const showPlayNotice = useCallback((message: string) => {
     setPlayNotice(message)
@@ -140,11 +151,9 @@ export function DoudizhuGame() {
     setSelectedCardIds([])
   }, [])
 
-  const handleDifficultyChange = useCallback((difficulty: AIDifficulty) => {
-    setGameState(prev => ({ ...prev, aiDifficulty: difficulty }))
-  }, [])
-
   useEffect(() => {
+    if (!hasStarted) return
+
     if (gameState.phase === 'bidding' && gameState.currentPlayerIndex !== 0) {
       let cancelled = false
       const playerIndex = gameState.currentPlayerIndex
@@ -222,10 +231,11 @@ export function DoudizhuGame() {
         clearTimeout(timer)
       }
     }
-  }, [gameState.phase, gameState.currentPlayerIndex, gameState])
+  }, [gameState.phase, gameState.currentPlayerIndex, gameState, hasStarted])
 
   // Play win/lose sound when round ends
   useEffect(() => {
+    if (!hasStarted) return
     if (gameState.phase === 'roundEnd' && soundEnabled.current) {
       const winnerId = gameState.playingState.lastPlayerIndex
       const isHumanWinner = winnerId === 0
@@ -238,7 +248,7 @@ export function DoudizhuGame() {
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [gameState.phase, gameState.playingState.lastPlayerIndex])
+  }, [gameState.phase, gameState.playingState.lastPlayerIndex, hasStarted])
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex]
 
@@ -258,6 +268,34 @@ export function DoudizhuGame() {
     return null
   }
 
+  if (!hasStarted) {
+    return (
+      <div className="doudizhu-game">
+        <div className="start-screen">
+          <div className="start-panel">
+            <div className="start-kicker">湖州四人斗地主</div>
+            <h1>选择难度</h1>
+            <div className="start-difficulty-options" aria-label="选择电脑难度">
+              {(['easy', 'medium', 'hard'] as AIDifficulty[]).map(difficulty => (
+                <button
+                  key={difficulty}
+                  type="button"
+                  className={`start-difficulty-btn ${selectedDifficulty === difficulty ? 'active' : ''}`}
+                  onClick={() => setSelectedDifficulty(difficulty)}
+                >
+                  {difficulty === 'easy' ? '简单' : difficulty === 'medium' ? '中等' : '困难'}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="start-game-btn" onClick={startGame}>
+              开始游戏
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="doudizhu-game">
       <GameHeader
@@ -266,11 +304,10 @@ export function DoudizhuGame() {
         currentPlayerName={currentPlayer.name}
         roundNumber={gameState.roundNumber}
         aiDifficulty={gameState.aiDifficulty}
-        onDifficultyChange={handleDifficultyChange}
         showBottom={gameState.phase === 'playing' || gameState.phase === 'roundEnd'}
       />
 
-      <div className="table-container">
+      <div className={`table-container ${humanHandWrapped ? 'hand-wrapped' : ''}`}>
         {/* Top - 电脑B (index 2) */}
         <PlayerSeat
           player={gameState.players[2]}

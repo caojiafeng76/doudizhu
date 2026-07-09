@@ -7,7 +7,6 @@ interface GameHeaderProps {
   currentPlayerName: string
   roundNumber: number
   aiDifficulty: AIDifficulty
-  onDifficultyChange: (difficulty: AIDifficulty) => void
   showBottom: boolean
 }
 
@@ -23,7 +22,6 @@ export function GameHeader({
   currentPlayerName,
   roundNumber,
   aiDifficulty,
-  onDifficultyChange,
   showBottom,
 }: GameHeaderProps) {
   return (
@@ -47,15 +45,7 @@ export function GameHeader({
           <span className="turn-indicator" />
           {currentPlayerName}
         </span>
-        <select
-          value={aiDifficulty}
-          onChange={e => onDifficultyChange(e.target.value as AIDifficulty)}
-          className="difficulty-select"
-        >
-          {(['easy', 'medium', 'hard'] as AIDifficulty[]).map(d => (
-            <option key={d} value={d}>{DIFFICULTY_LABELS[d]}</option>
-          ))}
-        </select>
+        <span className="difficulty-label">难度：{DIFFICULTY_LABELS[aiDifficulty]}</span>
       </div>
     </div>
   )

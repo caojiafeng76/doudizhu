@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Card as CardType } from '../game/types'
+import { getBombHighlightCardIds } from '../game/handHighlights.ts'
 import { selectCardRange, toggleCardRangeSelection } from '../game/selection.ts'
 import { Card } from './Card'
 
@@ -39,6 +40,9 @@ export function Hand({
     return { cardWidth, marginLeft: Math.floor(step - cardWidth), rowCount }
   }, [cards.length])
   const orderedCardIds = useMemo(() => cards.map(card => card.id), [cards])
+  const bombHighlightCardIds = useMemo(() => (
+    isHuman ? new Set(getBombHighlightCardIds(cards)) : new Set<number>()
+  ), [cards, isHuman])
 
   useEffect(() => {
     if (dragStartId === null) return
@@ -95,6 +99,7 @@ export function Hand({
           key={card.id}
           card={card}
           selected={selectedCardIds.includes(card.id)}
+          highlight={bombHighlightCardIds.has(card.id) ? 'bomb' : undefined}
           onClick={() => handleCardClick(card.id)}
           onMouseDown={event => handleCardMouseDown(card.id, event.button)}
           onMouseEnter={() => handleCardMouseEnter(card.id)}

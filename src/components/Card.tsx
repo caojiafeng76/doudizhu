@@ -5,6 +5,7 @@ import { getCardDisplay } from '../game/deck'
 interface CardProps {
   card: CardType
   selected?: boolean
+  highlight?: 'bomb'
   onClick?: () => void
   onMouseDown?: MouseEventHandler<HTMLDivElement>
   onMouseEnter?: MouseEventHandler<HTMLDivElement>
@@ -33,6 +34,7 @@ function getCardAssetPath(card: CardType): string {
 export function Card({
   card,
   selected,
+  highlight,
   onClick,
   onMouseDown,
   onMouseEnter,
@@ -55,10 +57,11 @@ export function Card({
   const colorClass = display.color === '#d32f2f' ? 'red' : 'black'
   const isJoker = card.suit === 'joker'
   const jokerSizeClass = size === 'small' ? 'joker-small' : ''
+  const highlightClass = highlight === 'bomb' ? 'bomb-highlight' : ''
 
   return (
     <div
-      className={`card ${colorClass} ${sizeClass} ${selected ? 'selected' : ''} ${isJoker ? 'joker ' + jokerSizeClass : ''}`}
+      className={`card ${colorClass} ${sizeClass} ${selected ? 'selected' : ''} ${highlightClass} ${isJoker ? 'joker ' + jokerSizeClass : ''}`}
       onClick={onClick}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
