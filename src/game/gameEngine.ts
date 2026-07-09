@@ -54,9 +54,12 @@ export function createInitialState(aiDifficulty: AIDifficulty = 'medium'): GameS
 
 export function placeBid(state: GameState, playerId: number, bid: number): GameState {
   if (state.phase !== 'bidding') return state
+  if (playerId !== state.biddingState.currentBidderIndex || playerId !== state.currentPlayerIndex) return state
+  if (!Number.isInteger(bid) || bid < 0 || bid > 3) return state
+  if (bid !== 0 && bid <= state.biddingState.highestBid) return state
 
   const newState = { ...state }
-  const bidding = { ...state.biddingState }
+  const bidding = { ...state.biddingState, bids: [...state.biddingState.bids] }
   bidding.bids[playerId] = bid
 
   if (bid === 0) {
@@ -115,6 +118,7 @@ function assignLandlord(state: GameState, landlordIndex: number): GameState {
 export function playCards(state: GameState, playerId: number, cards: Card[]): GameState {
   if (state.phase !== 'playing') return state
   if (playerId !== state.currentPlayerIndex) return state
+  if (!playerOwnsUniqueCards(state.players[playerId], cards)) return state
 
   const combination = identifyCombination(cards)
   if (!combination) return state
@@ -151,9 +155,20 @@ export function playCards(state: GameState, playerId: number, cards: Card[]): Ga
   return newState
 }
 
+function playerOwnsUniqueCards(player: Player | undefined, cards: Card[]): boolean {
+  if (!player) return false
+
+  const playedIds = new Set(cards.map(card => card.id))
+  if (playedIds.size !== cards.length) return false
+
+  const handIds = new Set(player.hand.map(card => card.id))
+  return cards.every(card => handIds.has(card.id))
+}
+
 export function passTurn(state: GameState, playerId: number): GameState {
   if (state.phase !== 'playing') return state
   if (playerId !== state.currentPlayerIndex) return state
+  if (!state.playingState.lastPlay) return state
   if (state.playingState.lastPlayerIndex === playerId) return state
 
   const newState = { ...state }

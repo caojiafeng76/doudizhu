@@ -144,9 +144,12 @@ export function findValidPlays(hand: Card[], lastPlay: Combination | null): Card
   if (lastPlay.type === 'bomb') {
     for (const [, group] of counts) {
       if (group.length >= 4) {
-        const bomb = identifyCombination(group)
-        if (bomb && canBeat(bomb, lastPlay)) {
-          results.push(group)
+        for (let bombLength = 4; bombLength <= group.length; bombLength++) {
+          const bombCards = group.slice(0, bombLength)
+          const bomb = identifyCombination(bombCards)
+          if (bomb && canBeat(bomb, lastPlay)) {
+            results.push(bombCards)
+          }
         }
       }
     }
@@ -182,7 +185,9 @@ function generateAllPlays(hand: Card[]): Card[][] {
       }
     }
     if (group.length >= 4) {
-      results.push(group)
+      for (let bombLength = 4; bombLength <= group.length; bombLength++) {
+        results.push(group.slice(0, bombLength))
+      }
     }
   }
 
