@@ -29,6 +29,8 @@ export function identifyCombination(cards: Card[]): Combination | null {
   const counts = countByValue(cards)
   const values = Array.from(counts.keys())
   const groups = Array.from(counts.values())
+  const smallJokers = cards.filter(c => c.suit === 'joker' && c.rank === 'small')
+  const bigJokers = cards.filter(c => c.suit === 'joker' && c.rank === 'big')
 
   if (n === 1) {
     return { type: 'single', mainValue: cards[0].value, length: 1, cards }
@@ -38,10 +40,11 @@ export function identifyCombination(cards: Card[]): Combination | null {
     if (values.length === 1) {
       return { type: 'pair', mainValue: values[0], length: 1, cards }
     }
-    if (cards.every(c => c.suit === 'joker')) {
-      return { type: 'rocket', mainValue: 100, length: 1, cards }
-    }
     return null
+  }
+
+  if (n === 4 && smallJokers.length === 2 && bigJokers.length === 2) {
+    return { type: 'rocket', mainValue: 100, length: 4, cards }
   }
 
   if (n === 3 && values.length === 1) {
@@ -97,7 +100,7 @@ export function identifyCombination(cards: Card[]): Combination | null {
   }
 
   if (n >= 4 && values.length === 1) {
-    return { type: 'bomb', mainValue: values[0], length: 1, cards }
+    return { type: 'bomb', mainValue: values[0], length: n, cards }
   }
 
   return null
@@ -108,7 +111,10 @@ export function canBeat(current: Combination, target: Combination): boolean {
   if (target.type === 'rocket') return false
 
   if (current.type === 'bomb') {
-    if (target.type === 'bomb') return current.mainValue > target.mainValue
+    if (target.type === 'bomb') {
+      if (current.length !== target.length) return current.length > target.length
+      return current.mainValue > target.mainValue
+    }
     return true
   }
 
@@ -129,10 +135,19 @@ export function findValidPlays(hand: Card[], lastPlay: Combination | null): Card
 
   if (lastPlay.type === 'rocket') return []
 
+  const smallJokers = hand.filter(c => c.suit === 'joker' && c.rank === 'small')
+  const bigJokers = hand.filter(c => c.suit === 'joker' && c.rank === 'big')
+  if (smallJokers.length >= 2 && bigJokers.length >= 2) {
+    results.push([...smallJokers.slice(0, 2), ...bigJokers.slice(0, 2)])
+  }
+
   if (lastPlay.type === 'bomb') {
     for (const [, group] of counts) {
-      if (group.length === 4 && group[0].value > lastPlay.mainValue) {
-        results.push(group)
+      if (group.length >= 4) {
+        const bomb = identifyCombination(group)
+        if (bomb && canBeat(bomb, lastPlay)) {
+          results.push(group)
+        }
       }
     }
     return results
@@ -175,9 +190,10 @@ function generateAllPlays(hand: Card[]): Card[][] {
   results.push(...findConsecutivePairs(counts))
   results.push(...findAirplanes(counts))
 
-  const jokers = hand.filter(c => c.suit === 'joker')
-  if (jokers.length === 2) {
-    results.push(jokers)
+  const smallJokers = hand.filter(c => c.suit === 'joker' && c.rank === 'small')
+  const bigJokers = hand.filter(c => c.suit === 'joker' && c.rank === 'big')
+  if (smallJokers.length >= 2 && bigJokers.length >= 2) {
+    results.push([...smallJokers.slice(0, 2), ...bigJokers.slice(0, 2)])
   }
 
   return results

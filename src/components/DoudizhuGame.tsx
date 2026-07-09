@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { GameState, AIDifficulty, PlayRecord } from '../game/types'
 import { createInitialState, placeBid, playCards, passTurn, startNewRound } from '../game/gameEngine'
 import { decideBid, aiPlayTurn } from '../game/ai'
+import { createPlayCandidates, requestAIDecision } from '../game/deepseekAI.ts'
 import { BidPanel } from './BidPanel'
 import { Hand } from './Hand'
 import { PlayArea } from './PlayArea'
@@ -91,33 +92,81 @@ export function DoudizhuGame() {
 
   useEffect(() => {
     if (gameState.phase === 'bidding' && gameState.currentPlayerIndex !== 0) {
+      let cancelled = false
+      const playerIndex = gameState.currentPlayerIndex
       const timer = setTimeout(() => {
         const aiPlayer = gameState.players[gameState.currentPlayerIndex]
-        const bid = decideBid(aiPlayer.hand, gameState.biddingState.highestBid, gameState.aiDifficulty)
-        setGameState(prev => placeBid(prev, prev.currentPlayerIndex, bid))
+        const fallbackBid = decideBid(aiPlayer.hand, gameState.biddingState.highestBid, gameState.aiDifficulty)
+
+        void requestAIDecision({
+          state: gameState,
+          playerId: playerIndex,
+          mode: 'bid',
+          fallbackBid,
+        }).then(decision => {
+          if (cancelled || decision.action !== 'bid') return
+          setGameState(prev => {
+            if (prev.phase !== 'bidding' || prev.currentPlayerIndex !== playerIndex) return prev
+            return placeBid(prev, playerIndex, decision.bid)
+          })
+        })
       }, AI_DELAY)
-      return () => clearTimeout(timer)
+      return () => {
+        cancelled = true
+        clearTimeout(timer)
+      }
     }
 
     if (gameState.phase === 'playing' && gameState.currentPlayerIndex !== 0) {
+      let cancelled = false
+      const playerIndex = gameState.currentPlayerIndex
       const timer = setTimeout(() => {
         const aiPlayer = gameState.players[gameState.currentPlayerIndex]
-        const play = aiPlayTurn(
+        const fallback = aiPlayTurn(
           aiPlayer.hand,
           gameState.playingState.lastPlay,
           aiPlayer.isLandlord,
           gameState.aiDifficulty
         )
+        const candidates = createPlayCandidates(aiPlayer.hand, gameState.playingState.lastPlay)
 
-        if (play) {
-          if (soundEnabled.current) SoundEffects.playCard()
-          setGameState(prev => playCards(prev, prev.currentPlayerIndex, play))
-        } else {
-          if (soundEnabled.current) SoundEffects.pass()
-          setGameState(prev => passTurn(prev, prev.currentPlayerIndex))
-        }
+        void requestAIDecision({
+          state: gameState,
+          playerId: playerIndex,
+          mode: 'play',
+          candidates,
+          fallback,
+        }).then(decision => {
+          if (cancelled) return
+
+          if (decision.action === 'play') {
+            setGameState(prev => {
+              if (prev.phase !== 'playing' || prev.currentPlayerIndex !== playerIndex) return prev
+              const next = playCards(prev, playerIndex, decision.cards)
+              if (next !== prev && soundEnabled.current) {
+                const comb = next.playingState.playHistory[next.playingState.playHistory.length - 1]?.combination
+                if (comb?.type === 'bomb' || comb?.type === 'rocket') {
+                  SoundEffects.bomb()
+                } else {
+                  SoundEffects.playCard()
+                }
+              }
+              return next
+            })
+          } else if (decision.action === 'pass') {
+            setGameState(prev => {
+              if (prev.phase !== 'playing' || prev.currentPlayerIndex !== playerIndex) return prev
+              const next = passTurn(prev, playerIndex)
+              if (next !== prev && soundEnabled.current) SoundEffects.pass()
+              return next
+            })
+          }
+        })
       }, AI_DELAY)
-      return () => clearTimeout(timer)
+      return () => {
+        cancelled = true
+        clearTimeout(timer)
+      }
     }
   }, [gameState.phase, gameState.currentPlayerIndex, gameState])
 

@@ -11,6 +11,14 @@ This project uses **bun** (lockfile is `bun.lock`). Use `bun install`, `bun dev`
 - `bun run lint` — ESLint
 - `bun run preview` — preview production build
 
+## Agent Workflow
+
+- Before writing code, check the available MCP/tools and invoke the relevant skills for the task.
+- For UI or behavior changes, use the design/brainstorming skill first when applicable, then implement conservatively.
+- For bugs, use systematic debugging before changing code; verify the root cause with a minimal reproduction when possible.
+- For game logic changes, prefer focused script checks with `bun --bun` plus `bun run build` and `bun run lint`.
+- For frontend layout changes, verify with a dev server/browser check when the needed browser tooling is available.
+
 ## Architecture
 
 - Entry: `index.html` → `src/main.tsx` → `src/App.tsx`

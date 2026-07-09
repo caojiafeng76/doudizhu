@@ -1,0 +1,7 @@
+Vector Playing Cards
+
+Source: https://github.com/notpeter/Vector-Playing-Cards
+Original source: https://code.google.com/archive/p/vector-playing-cards/
+
+License: Public domain, or WTFPL where public domain is not recognized.
+The original card images were released by Byron Knoll into the public domain.

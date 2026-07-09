@@ -15,8 +15,10 @@ export function evaluateHandStrength(hand: Card[]): number {
     else if (count === 2) score += 1
   }
 
-  const rockets = hand.filter(c => c.suit === 'joker')
-  if (rockets.length === 2) score += 10
+  const smallJokerCount = hand.filter(c => c.suit === 'joker' && c.rank === 'small').length
+  const bigJokerCount = hand.filter(c => c.suit === 'joker' && c.rank === 'big').length
+  const hasRocket = smallJokerCount >= 2 && bigJokerCount >= 2
+  if (hasRocket) score += 10
 
   for (const card of hand) {
     if (card.rank === '2') score += 2
@@ -179,9 +181,15 @@ function findBeatingPlays(hand: Card[], lastPlay: Combination): Card[][] {
 
   if (lastType === 'rocket') return []
 
+  const smallJokers = hand.filter(c => c.suit === 'joker' && c.rank === 'small')
+  const bigJokers = hand.filter(c => c.suit === 'joker' && c.rank === 'big')
+  if (smallJokers.length >= 2 && bigJokers.length >= 2) {
+    results.push([...smallJokers.slice(0, 2), ...bigJokers.slice(0, 2)])
+  }
+
   for (const [, group] of counts) {
-    if (group.length === 4) {
-      const bomb: Combination = { type: 'bomb', mainValue: group[0].value, length: 1, cards: group }
+    if (group.length >= 4) {
+      const bomb: Combination = { type: 'bomb', mainValue: group[0].value, length: group.length, cards: group }
       if (canBeat(bomb, lastPlay)) {
         results.push(group)
       }
@@ -236,11 +244,6 @@ function findBeatingPlays(hand: Card[], lastPlay: Combination): Card[][] {
   if (lastType === 'airplane') {
     const airplanes = findAirplanesOfLength(hand, lastPlay.length, lastPlay.mainValue)
     results.push(...airplanes)
-  }
-
-  const jokers = hand.filter(c => c.suit === 'joker')
-  if (jokers.length === 2) {
-    results.push(jokers)
   }
 
   return results

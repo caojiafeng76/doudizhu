@@ -9,17 +9,21 @@ interface HandProps {
   isHuman: boolean
 }
 
-const HAND_MAX_WIDTH = 880
-const HAND_CARD_GAP = 34
+const HAND_CARD_WIDTH = 76
+const HAND_MAX_WIDTH = 1040
+const HAND_CARD_GAP = 40
+const HAND_WRAP_THRESHOLD = 30
+const HAND_WRAP_COLUMNS = 17
 
 export function Hand({ cards, selectedCardIds, onCardClick, isHuman }: HandProps) {
-  const { cardWidth, marginLeft } = useMemo(() => {
-    if (cards.length <= 1) return { cardWidth: 64, marginLeft: 0 }
-    const totalCardWidth = HAND_CARD_GAP * cards.length
-    const overflow = totalCardWidth - HAND_MAX_WIDTH
-    if (overflow <= 0) return { cardWidth: 64, marginLeft: HAND_CARD_GAP - 64 }
-    const overlap = Math.min(40, overflow / (cards.length - 1))
-    return { cardWidth: 64, marginLeft: Math.round(64 - overlap) }
+  const { cardWidth, marginLeft, rowCount } = useMemo(() => {
+    const cardWidth = HAND_CARD_WIDTH
+    const rowCount = cards.length > HAND_WRAP_THRESHOLD ? Math.ceil(cards.length / HAND_WRAP_COLUMNS) : 1
+    const cardsPerRow = rowCount > 1 ? Math.ceil(cards.length / rowCount) : cards.length
+    if (cardsPerRow <= 1) return { cardWidth, marginLeft: 0, rowCount }
+
+    const step = Math.min(HAND_CARD_GAP, (HAND_MAX_WIDTH - cardWidth) / (cardsPerRow - 1))
+    return { cardWidth, marginLeft: Math.floor(step - cardWidth), rowCount }
   }, [cards.length])
 
   if (!isHuman) {
@@ -36,7 +40,7 @@ export function Hand({ cards, selectedCardIds, onCardClick, isHuman }: HandProps
   }
 
   return (
-    <div className="human-hand">
+    <div className={`human-hand ${rowCount > 1 ? 'wrapped' : ''}`}>
       {cards.map((card, i) => (
         <Card
           key={card.id}
@@ -45,8 +49,9 @@ export function Hand({ cards, selectedCardIds, onCardClick, isHuman }: HandProps
           onClick={() => onCardClick?.(card.id)}
           style={{
             width: `${cardWidth}px`,
-            marginLeft: i === 0 ? 0 : `${marginLeft}px`,
+            marginLeft: i % Math.ceil(cards.length / rowCount) === 0 ? 0 : `${marginLeft}px`,
             flexShrink: 0,
+            zIndex: i,
           }}
         />
       ))}
