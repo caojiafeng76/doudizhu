@@ -87,6 +87,14 @@ export function identifyCombination(cards: Card[]): Combination | null {
       else { valid = false; break }
     }
 
+    if (valid && pairValues.length === 0 && tripleValues.length >= 3 && n === tripleValues.length * 3) {
+      const sortedTriples = [...tripleValues].sort((a, b) => a - b)
+      if (isConsecutive(sortedTriples, 3, [15, 16, 17])) {
+        const minTriple = sortedTriples[0]
+        return { type: 'airplane', mainValue: minTriple, length: tripleValues.length, cards }
+      }
+    }
+
     if (valid && tripleValues.length >= 3 && tripleValues.length === pairValues.length) {
       const sortedTriples = [...tripleValues].sort((a, b) => a - b)
       if (isConsecutive(sortedTriples, 3, [15, 16, 17])) {
@@ -305,6 +313,7 @@ function findAirplanes(counts: Map<number, Card[]>): Card[][] {
             baseCards.push(...counts.get(val)!.slice(0, 3))
             tripleVals.push(val)
           }
+          results.push(baseCards)
           const wings = findWings(counts, tripleVals, len)
           for (const wing of wings) {
             results.push([...baseCards, ...wing])
