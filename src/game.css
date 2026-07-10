@@ -33,9 +33,12 @@
   --color-negative: #ff4d4f;
 
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-card-selected: 0 8px 24px rgba(212, 168, 67, 0.3), 0 0 0 2px var(--color-gold);
-  --shadow-glow-gold: 0 0 20px rgba(212, 168, 67, 0.4), 0 0 40px rgba(212, 168, 67, 0.2);
+  --shadow-card-hover:
+    0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-card-selected:
+    0 8px 24px rgba(212, 168, 67, 0.3), 0 0 0 2px var(--color-gold);
+  --shadow-glow-gold:
+    0 0 20px rgba(212, 168, 67, 0.4), 0 0 40px rgba(212, 168, 67, 0.2);
   --shadow-glow-red: 0 0 20px rgba(231, 76, 60, 0.4);
   --shadow-glow-green: 0 0 20px rgba(82, 196, 26, 0.3);
   --shadow-inset-deep: inset 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -60,9 +63,23 @@
   width: 100vw;
   height: 100vh;
   background:
-    radial-gradient(ellipse at 50% 42%, rgba(47, 116, 80, 0.95) 0%, rgba(25, 74, 51, 0.92) 48%, transparent 72%),
-    radial-gradient(ellipse at 50% 95%, rgba(12, 8, 4, 0.65) 0%, transparent 56%),
-    linear-gradient(135deg, #10291f 0%, var(--color-felt-dark) 42%, var(--color-bg-deep) 100%);
+    radial-gradient(
+      ellipse at 50% 42%,
+      rgba(47, 116, 80, 0.95) 0%,
+      rgba(25, 74, 51, 0.92) 48%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse at 50% 95%,
+      rgba(12, 8, 4, 0.65) 0%,
+      transparent 56%
+    ),
+    linear-gradient(
+      135deg,
+      #10291f 0%,
+      var(--color-felt-dark) 42%,
+      var(--color-bg-deep) 100%
+    );
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -76,8 +93,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23000000' fill-opacity='0.08' fill-rule='evenodd'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23000000' fill-opacity='0.08' fill-rule='evenodd'/%3E%3C/svg%3E");
   opacity: 0.6;
   pointer-events: none;
   z-index: 0;
@@ -88,8 +104,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(0,0,0,0.035) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
   background-size: 34px 34px;
   opacity: 0.28;
   pointer-events: none;
@@ -102,7 +118,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 18px;
-  background: linear-gradient(180deg, rgba(10, 8, 5, 0.78) 0%, rgba(10, 8, 5, 0.36) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(10, 8, 5, 0.78) 0%,
+    rgba(10, 8, 5, 0.36) 100%
+  );
   border-bottom: 1px solid rgba(212, 168, 67, 0.16);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   position: relative;
@@ -230,7 +250,11 @@
   border-radius: var(--radius-lg);
   border: 1px solid rgba(212, 168, 67, 0.26);
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(240, 208, 112, 0.12), transparent 62%),
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(240, 208, 112, 0.12),
+      transparent 62%
+    ),
     linear-gradient(145deg, rgba(35, 24, 15, 0.9), rgba(13, 9, 5, 0.92));
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.42),
@@ -286,7 +310,11 @@
 
 .start-difficulty-btn.active {
   border-color: rgba(240, 208, 112, 0.8);
-  background: linear-gradient(135deg, rgba(168, 120, 48, 0.74), rgba(92, 54, 20, 0.72));
+  background: linear-gradient(
+    135deg,
+    rgba(168, 120, 48, 0.74),
+    rgba(92, 54, 20, 0.72)
+  );
   color: var(--color-white);
   box-shadow: 0 0 18px rgba(212, 168, 67, 0.18);
 }
@@ -303,7 +331,9 @@
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 8px 22px rgba(46, 125, 50, 0.26);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .start-game-btn:hover {
@@ -331,7 +361,11 @@
   position: absolute;
   inset: 42px clamp(64px, 8vw, 140px) 140px;
   background:
-    radial-gradient(ellipse at 50% 42%, rgba(60, 142, 97, 0.42) 0%, transparent 52%),
+    radial-gradient(
+      ellipse at 50% 42%,
+      rgba(60, 142, 97, 0.42) 0%,
+      transparent 52%
+    ),
     linear-gradient(145deg, rgba(31, 93, 64, 0.74), rgba(13, 50, 34, 0.9));
   border: 1px solid rgba(212, 168, 67, 0.16);
   border-radius: 46% / 42%;
@@ -356,8 +390,11 @@
 .player-seat {
   position: absolute;
   padding: 8px 14px;
-  background:
-    linear-gradient(145deg, rgba(52, 35, 22, 0.78), rgba(18, 13, 8, 0.86));
+  background: linear-gradient(
+    145deg,
+    rgba(52, 35, 22, 0.78),
+    rgba(18, 13, 8, 0.86)
+  );
   border-radius: var(--radius-md);
   border: 1px solid rgba(212, 168, 67, 0.18);
   color: var(--color-text-primary);
@@ -393,10 +430,24 @@
   box-shadow: var(--shadow-glow-red), var(--shadow-glow-gold);
 }
 
-.player-seat.bottom { bottom: auto; }
-.player-seat.top { top: 20px; left: 50%; transform: translateX(-50%); }
-.player-seat.left { left: 26px; top: 47%; transform: translateY(-50%); }
-.player-seat.right { right: 26px; top: 47%; transform: translateY(-50%); }
+.player-seat.bottom {
+  bottom: auto;
+}
+.player-seat.top {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.player-seat.left {
+  left: 26px;
+  top: 47%;
+  transform: translateY(-50%);
+}
+.player-seat.right {
+  right: 26px;
+  top: 47%;
+  transform: translateY(-50%);
+}
 
 .player-info {
   display: flex;
@@ -408,7 +459,11 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-wood-light), var(--color-wood));
+  background: linear-gradient(
+    135deg,
+    var(--color-wood-light),
+    var(--color-wood)
+  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -466,15 +521,23 @@
   animation: thinking-bounce 1.4s ease-in-out infinite;
 }
 
-.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 /* === Play Area (center decoration) === */
 .play-area {
   width: 230px;
   min-height: 150px;
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(240, 208, 112, 0.08), transparent 60%),
+    radial-gradient(
+      ellipse at 50% 30%,
+      rgba(240, 208, 112, 0.08),
+      transparent 60%
+    ),
     linear-gradient(145deg, rgba(18, 63, 43, 0.5), rgba(7, 29, 20, 0.56));
   border-radius: 28px;
   border: 1px solid rgba(212, 168, 67, 0.13);
@@ -491,7 +554,11 @@
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(212, 168, 67, 0.04) 0%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(212, 168, 67, 0.04) 0%,
+    transparent 70%
+  );
   pointer-events: none;
 }
 
@@ -571,14 +638,20 @@
 
 .player-played-cards.bomb-play {
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(255, 92, 45, 0.2), transparent 72%),
+    radial-gradient(
+      ellipse at 50% 50%,
+      rgba(255, 92, 45, 0.2),
+      transparent 72%
+    ),
     rgba(38, 12, 5, 0.72);
   border-color: rgba(255, 205, 82, 0.7);
   box-shadow:
     0 14px 34px rgba(0, 0, 0, 0.32),
     0 0 26px rgba(255, 64, 28, 0.36),
     inset 0 0 18px rgba(255, 205, 82, 0.16);
-  animation: card-appear 300ms ease-out, bomb-play-pulse 1100ms ease-in-out 2;
+  animation:
+    card-appear 300ms ease-out,
+    bomb-play-pulse 1100ms ease-in-out 2;
 }
 
 .player-played-cards .card {
@@ -589,11 +662,21 @@
   flex-shrink: 0;
 }
 
-.player-played-cards .card .card-rank { font-size: 11px; }
-.player-played-cards .card .card-suit { font-size: 10px; }
-.player-played-cards .card .card-center { font-size: 22px; }
-.player-played-cards .card .card-back-pattern { inset: 3px; }
-.player-played-cards .card .card-back-pattern::after { font-size: 11px; }
+.player-played-cards .card .card-rank {
+  font-size: 11px;
+}
+.player-played-cards .card .card-suit {
+  font-size: 10px;
+}
+.player-played-cards .card .card-center {
+  font-size: 22px;
+}
+.player-played-cards .card .card-back-pattern {
+  inset: 3px;
+}
+.player-played-cards .card .card-back-pattern::after {
+  font-size: 11px;
+}
 
 .player-played-pass {
   position: absolute;
@@ -658,8 +741,11 @@
   color: #ffe7a3;
   font-size: 13px;
   font-weight: 700;
-  background:
-    linear-gradient(180deg, rgba(78, 35, 15, 0.94), rgba(30, 16, 8, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(78, 35, 15, 0.94),
+    rgba(30, 16, 8, 0.94)
+  );
   border: 1px solid rgba(240, 208, 112, 0.44);
   border-radius: var(--radius-sm);
   box-shadow:
@@ -715,7 +801,11 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    transparent 50%
+  );
   pointer-events: none;
 }
 
@@ -737,12 +827,18 @@
   transform: translateY(0);
 }
 
-.bid-1 { background: linear-gradient(135deg, #3d8b40, #2e7d32); }
-.bid-2 { background: linear-gradient(135deg, #e68900, #d4750e); }
-.bid-3 { background: linear-gradient(135deg, #c0392b, #a93226); }
+.bid-1 {
+  background: linear-gradient(135deg, #3d8b40, #2e7d32);
+}
+.bid-2 {
+  background: linear-gradient(135deg, #e68900, #d4750e);
+}
+.bid-3 {
+  background: linear-gradient(135deg, #c0392b, #a93226);
+}
 .bid-pass {
   background: linear-gradient(135deg, #546e7a, #455a64);
-  color: rgba(255,255,255,0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .play-btn {
@@ -795,14 +891,13 @@
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.01) 2px,
-      rgba(0,0,0,0.01) 4px
-    );
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.01) 2px,
+    rgba(0, 0, 0, 0.01) 4px
+  );
   pointer-events: none;
   border-radius: inherit;
 }
@@ -897,9 +992,15 @@
   padding: 2px 3px;
 }
 
-.card-small .card-rank { font-size: 10px; }
-.card-small .card-suit { font-size: 9px; }
-.card-small .card-center { font-size: 16px; }
+.card-small .card-rank {
+  font-size: 10px;
+}
+.card-small .card-suit {
+  font-size: 9px;
+}
+.card-small .card-center {
+  font-size: 16px;
+}
 
 /* Large variant */
 .card-large {
@@ -909,9 +1010,15 @@
   padding: 6px 8px;
 }
 
-.card-large .card-rank { font-size: 18px; }
-.card-large .card-suit { font-size: 16px; }
-.card-large .card-center { font-size: 38px; }
+.card-large .card-rank {
+  font-size: 18px;
+}
+.card-large .card-suit {
+  font-size: 16px;
+}
+.card-large .card-center {
+  font-size: 38px;
+}
 
 /* Card back */
 .card-back {
@@ -920,14 +1027,13 @@
 }
 
 .card-back::before {
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 3px,
-      rgba(212, 168, 67, 0.12) 3px,
-      rgba(212, 168, 67, 0.12) 6px
-    );
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(212, 168, 67, 0.12) 3px,
+    rgba(212, 168, 67, 0.12) 6px
+  );
 }
 
 .card-back-pattern {
@@ -946,12 +1052,20 @@
   font-size: 16px;
 }
 
-.card-small .card-back-pattern { inset: 3px; }
-.card-small .card-back-pattern::after { font-size: 10px; }
+.card-small .card-back-pattern {
+  inset: 3px;
+}
+.card-small .card-back-pattern::after {
+  font-size: 10px;
+}
 
 /* Red cards (heart/diamond/big joker) */
-.card.red { color: var(--color-red); }
-.card.black { color: #1a1a1a; }
+.card.red {
+  color: var(--color-red);
+}
+.card.black {
+  color: #1a1a1a;
+}
 
 /* Joker special */
 .card.joker .card-center {
@@ -959,7 +1073,9 @@
   font-weight: 900;
 }
 
-.card.joker-small .card-center { font-size: 12px; }
+.card.joker-small .card-center {
+  font-size: 12px;
+}
 
 /* ========================================
    Hand display
@@ -996,7 +1112,11 @@
   z-index: 3;
   background:
     linear-gradient(180deg, rgba(9, 8, 5, 0.08), rgba(6, 4, 2, 0.46)),
-    radial-gradient(ellipse at 50% 100%, rgba(212, 168, 67, 0.12), transparent 70%);
+    radial-gradient(
+      ellipse at 50% 100%,
+      rgba(212, 168, 67, 0.12),
+      transparent 70%
+    );
   border: 1px solid rgba(212, 168, 67, 0.1);
   border-radius: 28px 28px 0 0;
   box-shadow:
@@ -1020,7 +1140,9 @@
 }
 
 .human-hand .card:hover {
-  box-shadow: var(--shadow-card-hover), 0 0 0 1px rgba(240, 208, 112, 0.42);
+  box-shadow:
+    var(--shadow-card-hover),
+    0 0 0 1px rgba(240, 208, 112, 0.42);
 }
 
 .human-hand .card.bomb-highlight {
@@ -1047,7 +1169,11 @@
   border: 1px solid rgba(255, 226, 132, 0.72);
   background:
     linear-gradient(135deg, rgba(255, 233, 156, 0.18), transparent 38%),
-    radial-gradient(ellipse at 50% 12%, rgba(255, 226, 132, 0.2), transparent 54%);
+    radial-gradient(
+      ellipse at 50% 12%,
+      rgba(255, 226, 132, 0.2),
+      transparent 54%
+    );
   opacity: 0.42;
   pointer-events: none;
   transform: scale(0.985);
@@ -1105,7 +1231,11 @@
   position: absolute;
   right: 20px;
   top: 58px;
-  background: linear-gradient(145deg, rgba(20, 15, 9, 0.62), rgba(12, 9, 5, 0.72));
+  background: linear-gradient(
+    145deg,
+    rgba(20, 15, 9, 0.62),
+    rgba(12, 9, 5, 0.72)
+  );
   border-radius: var(--radius-md);
   border: 1px solid rgba(212, 168, 67, 0.11);
   padding: 12px 14px;
@@ -1155,9 +1285,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-.score-value.positive { color: var(--color-positive); }
-.score-value.negative { color: var(--color-negative); }
-.score-value.neutral { color: var(--color-text-secondary); }
+.score-value.positive {
+  color: var(--color-positive);
+}
+.score-value.negative {
+  color: var(--color-negative);
+}
+.score-value.neutral {
+  color: var(--color-text-secondary);
+}
 
 /* ========================================
    Result Modal
@@ -1180,7 +1316,9 @@
   padding: 40px;
   min-width: 360px;
   border: 2px solid var(--color-gold);
-  box-shadow: var(--shadow-glow-gold), 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    var(--shadow-glow-gold),
+    0 20px 60px rgba(0, 0, 0, 0.5);
   animation: modal-enter 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
@@ -1190,7 +1328,11 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at top, rgba(212, 168, 67, 0.08) 0%, transparent 60%);
+  background: radial-gradient(
+    ellipse at top,
+    rgba(212, 168, 67, 0.08) 0%,
+    transparent 60%
+  );
   pointer-events: none;
 }
 
@@ -1228,10 +1370,18 @@
   animation: row-slide-in 300ms ease-out both;
 }
 
-.result-row:nth-child(1) { animation-delay: 100ms; }
-.result-row:nth-child(2) { animation-delay: 200ms; }
-.result-row:nth-child(3) { animation-delay: 300ms; }
-.result-row:nth-child(4) { animation-delay: 400ms; }
+.result-row:nth-child(1) {
+  animation-delay: 100ms;
+}
+.result-row:nth-child(2) {
+  animation-delay: 200ms;
+}
+.result-row:nth-child(3) {
+  animation-delay: 300ms;
+}
+.result-row:nth-child(4) {
+  animation-delay: 400ms;
+}
 
 .result-row.landlord-row {
   border-left-color: var(--color-red);
@@ -1274,7 +1424,11 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 50%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    transparent 50%
+  );
   pointer-events: none;
 }
 
@@ -1291,23 +1445,51 @@
    Animations
    ======================================== */
 @keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(212, 168, 67, 0.5); }
-  50% { opacity: 0.5; box-shadow: 0 0 8px rgba(212, 168, 67, 0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 4px rgba(212, 168, 67, 0.5);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 8px rgba(212, 168, 67, 0.8);
+  }
 }
 
 @keyframes seat-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(212, 168, 67, 0.3), 0 0 30px rgba(212, 168, 67, 0.1); }
-  50% { box-shadow: 0 0 25px rgba(212, 168, 67, 0.5), 0 0 50px rgba(212, 168, 67, 0.2); }
+  0%,
+  100% {
+    box-shadow:
+      0 0 15px rgba(212, 168, 67, 0.3),
+      0 0 30px rgba(212, 168, 67, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(212, 168, 67, 0.5),
+      0 0 50px rgba(212, 168, 67, 0.2);
+  }
 }
 
 @keyframes thinking-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-4px); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes modal-enter {
@@ -1344,8 +1526,13 @@
 }
 
 @keyframes glow-pulse {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.2); }
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.2);
+  }
 }
 
 @keyframes card-appear {
@@ -1371,7 +1558,8 @@
 }
 
 @keyframes bomb-play-pulse {
-  0%, 100% {
+  0%,
+  100% {
     filter: brightness(1);
   }
   50% {
@@ -1380,7 +1568,8 @@
 }
 
 @keyframes hand-bomb-soft-glow {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.34;
     transform: scale(0.985);
   }
