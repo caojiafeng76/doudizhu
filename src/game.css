@@ -973,7 +973,7 @@
 }
 
 .table-container.hand-wrapped .human-seat-wrapper {
-  bottom: calc(420px + var(--human-area-lift));
+  bottom: calc(335px + var(--human-area-lift));
 }
 
 .table-container.hand-wrapped .player-played-cards.bottom {
