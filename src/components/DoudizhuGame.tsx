@@ -1,12 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Card, GameState, AIDifficulty, PlayRecord } from '../game/types'
-import { createInitialState, placeBid, playCards, passTurn, startNewRound } from '../game/gameEngine'
+import {
+  createInitialState,
+  placeBid,
+  playCards,
+  passTurn,
+  startNewRound,
+} from '../game/gameEngine'
 import { decideBid, aiPlayTurn } from '../game/ai'
-import { createPlayCandidates, requestAIDecision } from '../game/deepseekAI.ts'
+import {
+  createPlayCandidates,
+  requestAIAnalysis,
+  requestAIDecision,
+} from '../game/deepseekAI.ts'
+import type { AIAnalysisResult } from '../game/deepseekAI.ts'
 import { canBeat, identifyCombination } from '../game/cardLogic.ts'
 import { BidPanel } from './BidPanel'
 import { Hand } from './Hand'
 import { PlayArea } from './PlayArea'
+import { AIAnalysisPanel } from './AIAnalysisPanel'
 import { PlayerSeat } from './PlayerSeat'
 import { GameHeader } from './GameHeader'
 import { ScoreBoard } from './ScoreBoard'
@@ -16,14 +28,32 @@ import { SoundEffects } from '../game/sounds'
 const AI_DELAY = 800
 const HUMAN_HAND_WRAP_THRESHOLD = 30
 
+type AIAnalysisViewState =
+  | { status: 'idle'; key: null; result: null }
+  | { status: 'ready' | 'unavailable'; key: string; result: AIAnalysisResult }
+
 export function DoudizhuGame() {
-  const [gameState, setGameState] = useState<GameState>(() => createInitialState('medium'))
+  const [gameState, setGameState] = useState<GameState>(() =>
+    createInitialState('medium'),
+  )
   const [hasStarted, setHasStarted] = useState(false)
-  const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty>('medium')
+  const [selectedDifficulty, setSelectedDifficulty] =
+    useState<AIDifficulty>('medium')
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([])
   const [playNotice, setPlayNotice] = useState<string | null>(null)
+  const [aiAnalysisState, setAIAnalysisState] = useState<AIAnalysisViewState>({
+    status: 'idle',
+    key: null,
+    result: null,
+  })
   const soundEnabled = useRef(true)
   const noticeTimerRef = useRef<number | null>(null)
+  const analysisRequestIdRef = useRef(0)
+
+  const clearAIAnalysis = useCallback(() => {
+    analysisRequestIdRef.current += 1
+    setAIAnalysisState({ status: 'idle', key: null, result: null })
+  }, [])
 
   const startGame = useCallback(() => {
     if (soundEnabled.current) SoundEffects.shuffle()
@@ -31,12 +61,34 @@ export function DoudizhuGame() {
     setHasStarted(true)
     setSelectedCardIds([])
     setPlayNotice(null)
-  }, [selectedDifficulty])
+    clearAIAnalysis()
+  }, [clearAIAnalysis, selectedDifficulty])
 
   const humanPlayer = gameState.players[0]
-  const isHumanTurn = gameState.currentPlayerIndex === 0 && gameState.phase === 'playing'
-  const isHumanBidding = gameState.currentPlayerIndex === 0 && gameState.phase === 'bidding'
+  const isHumanTurn =
+    gameState.currentPlayerIndex === 0 && gameState.phase === 'playing'
+  const isHumanBidding =
+    gameState.currentPlayerIndex === 0 && gameState.phase === 'bidding'
   const humanHandWrapped = humanPlayer.hand.length > HUMAN_HAND_WRAP_THRESHOLD
+  const analysisKey = isHumanTurn
+    ? [
+        gameState.roundNumber,
+        humanPlayer.hand.map((card) => card.id).join(','),
+        gameState.playingState.lastPlayerIndex,
+        gameState.playingState.lastPlay?.cards
+          .map((card) => card.id)
+          .join(',') ?? 'none',
+        gameState.playingState.playHistory.length,
+      ].join('|')
+    : null
+  const analysisStatus =
+    !isHumanTurn || !analysisKey
+      ? 'idle'
+      : aiAnalysisState.key === analysisKey
+        ? aiAnalysisState.status
+        : 'loading'
+  const analysisResult =
+    aiAnalysisState.key === analysisKey ? aiAnalysisState.result : null
 
   const showPlayNotice = useCallback((message: string) => {
     setPlayNotice(message)
@@ -59,74 +111,106 @@ export function DoudizhuGame() {
 
   const toggleCardSelection = useCallback((cardId: number) => {
     if (soundEnabled.current) {
-      setSelectedCardIds(prev => {
+      setSelectedCardIds((prev) => {
         const isSelected = prev.includes(cardId)
         if (isSelected) {
           SoundEffects.deselect()
         } else {
           SoundEffects.select()
         }
-        return isSelected ? prev.filter(id => id !== cardId) : [...prev, cardId]
+        return isSelected
+          ? prev.filter((id) => id !== cardId)
+          : [...prev, cardId]
       })
     } else {
-      setSelectedCardIds(prev =>
-        prev.includes(cardId) ? prev.filter(id => id !== cardId) : [...prev, cardId]
+      setSelectedCardIds((prev) =>
+        prev.includes(cardId)
+          ? prev.filter((id) => id !== cardId)
+          : [...prev, cardId],
       )
     }
   }, [])
 
-  const getInvalidPlayMessage = useCallback((cards: Card[]) => {
-    if (!isHumanTurn) return '还没轮到你'
-    if (cards.length === 0) return '先选牌'
+  const getInvalidPlayMessage = useCallback(
+    (cards: Card[]) => {
+      if (!isHumanTurn) return '还没轮到你'
+      if (cards.length === 0) return '先选牌'
 
-    const combination = identifyCombination(cards)
-    if (!combination) return '牌型不符合规则'
+      const combination = identifyCombination(cards)
+      if (!combination) return '牌型不符合规则'
 
-    const lastPlay = gameState.playingState.lastPlay
-    const mustBeatLastPlay = lastPlay && gameState.playingState.lastPlayerIndex !== 0
-    if (mustBeatLastPlay && !canBeat(combination, lastPlay)) {
-      return '压不过上家'
-    }
-
-    return '不能这样出'
-  }, [gameState.playingState.lastPlay, gameState.playingState.lastPlayerIndex, isHumanTurn])
-
-  const attemptPlayCards = useCallback((cardIds: number[]) => {
-    if (cardIds.length === 0) {
-      showPlayNotice('先选牌')
-      if (soundEnabled.current) SoundEffects.invalid()
-      return
-    }
-
-    const selectedCards = humanPlayer.hand.filter(c => cardIds.includes(c.id))
-    const newState = playCards(gameState, 0, selectedCards)
-    if (newState !== gameState) {
-      if (soundEnabled.current) {
-        const comb = newState.playingState.playHistory[newState.playingState.playHistory.length - 1]?.combination
-        if (comb?.type === 'bomb' || comb?.type === 'rocket') {
-          SoundEffects.bomb()
-        } else {
-          SoundEffects.playCard()
-        }
+      const lastPlay = gameState.playingState.lastPlay
+      const mustBeatLastPlay =
+        lastPlay && gameState.playingState.lastPlayerIndex !== 0
+      if (mustBeatLastPlay && !canBeat(combination, lastPlay)) {
+        return '压不过上家'
       }
-      setGameState(newState)
-      setSelectedCardIds([])
-      setPlayNotice(null)
-    } else {
-      if (soundEnabled.current) SoundEffects.invalid()
-      showPlayNotice(getInvalidPlayMessage(selectedCards))
-    }
-  }, [gameState, getInvalidPlayMessage, humanPlayer.hand, showPlayNotice])
+
+      return '不能这样出'
+    },
+    [
+      gameState.playingState.lastPlay,
+      gameState.playingState.lastPlayerIndex,
+      isHumanTurn,
+    ],
+  )
+
+  const attemptPlayCards = useCallback(
+    (cardIds: number[]) => {
+      if (cardIds.length === 0) {
+        showPlayNotice('先选牌')
+        if (soundEnabled.current) SoundEffects.invalid()
+        return
+      }
+
+      const selectedCards = humanPlayer.hand.filter((c) =>
+        cardIds.includes(c.id),
+      )
+      const newState = playCards(gameState, 0, selectedCards)
+      if (newState !== gameState) {
+        if (soundEnabled.current) {
+          const comb =
+            newState.playingState.playHistory[
+              newState.playingState.playHistory.length - 1
+            ]?.combination
+          if (comb?.type === 'bomb' || comb?.type === 'rocket') {
+            SoundEffects.bomb()
+          } else {
+            SoundEffects.playCard()
+          }
+        }
+        setGameState(newState)
+        setSelectedCardIds([])
+        setPlayNotice(null)
+        clearAIAnalysis()
+      } else {
+        if (soundEnabled.current) SoundEffects.invalid()
+        showPlayNotice(getInvalidPlayMessage(selectedCards))
+      }
+    },
+    [
+      clearAIAnalysis,
+      gameState,
+      getInvalidPlayMessage,
+      humanPlayer.hand,
+      showPlayNotice,
+    ],
+  )
 
   const handlePlay = useCallback(() => {
     attemptPlayCards(selectedCardIds)
   }, [attemptPlayCards, selectedCardIds])
 
-  const handleCardContextPlay = useCallback((cardId: number) => {
-    const cardIds = selectedCardIds.includes(cardId) ? selectedCardIds : [cardId]
-    setSelectedCardIds(cardIds)
-    attemptPlayCards(cardIds)
-  }, [attemptPlayCards, selectedCardIds])
+  const handleCardContextPlay = useCallback(
+    (cardId: number) => {
+      const cardIds = selectedCardIds.includes(cardId)
+        ? selectedCardIds
+        : [cardId]
+      setSelectedCardIds(cardIds)
+      attemptPlayCards(cardIds)
+    },
+    [attemptPlayCards, selectedCardIds],
+  )
 
   const handlePass = useCallback(() => {
     if (!isHumanTurn) return
@@ -135,21 +219,59 @@ export function DoudizhuGame() {
       if (soundEnabled.current) SoundEffects.pass()
       setGameState(newState)
       setSelectedCardIds([])
+      clearAIAnalysis()
     }
-  }, [isHumanTurn, gameState])
+  }, [clearAIAnalysis, isHumanTurn, gameState])
 
-  const handleBid = useCallback((bid: number) => {
-    if (!isHumanBidding) return
-    if (soundEnabled.current) SoundEffects.bid()
-    const newState = placeBid(gameState, 0, bid)
-    setGameState(newState)
-  }, [isHumanBidding, gameState])
+  const handleBid = useCallback(
+    (bid: number) => {
+      if (!isHumanBidding) return
+      if (soundEnabled.current) SoundEffects.bid()
+      const newState = placeBid(gameState, 0, bid)
+      setGameState(newState)
+    },
+    [isHumanBidding, gameState],
+  )
 
   const handleNewRound = useCallback(() => {
     if (soundEnabled.current) SoundEffects.shuffle()
-    setGameState(prev => startNewRound(prev))
+    setGameState((prev) => startNewRound(prev))
     setSelectedCardIds([])
-  }, [])
+    clearAIAnalysis()
+  }, [clearAIAnalysis])
+
+  useEffect(() => {
+    if (!hasStarted || !isHumanTurn || !analysisKey) return
+
+    const requestId = ++analysisRequestIdRef.current
+    let cancelled = false
+    const candidates = createPlayCandidates(
+      humanPlayer.hand,
+      gameState.playingState.lastPlay,
+    )
+    const fallback = aiPlayTurn(
+      humanPlayer.hand,
+      gameState.playingState.lastPlay,
+      humanPlayer.isLandlord,
+      gameState.aiDifficulty,
+    )
+
+    void requestAIAnalysis({
+      state: gameState,
+      playerId: 0,
+      mode: 'analysis',
+      candidates,
+      fallback,
+    }).then((result) => {
+      if (cancelled || analysisRequestIdRef.current !== requestId) return
+      setAIAnalysisState({ status: result.status, key: analysisKey, result })
+    })
+
+    return () => {
+      cancelled = true
+      analysisRequestIdRef.current += 1
+    }
+  }, [analysisKey, gameState, hasStarted, humanPlayer, isHumanTurn])
 
   useEffect(() => {
     if (!hasStarted) return
@@ -159,17 +281,25 @@ export function DoudizhuGame() {
       const playerIndex = gameState.currentPlayerIndex
       const timer = setTimeout(() => {
         const aiPlayer = gameState.players[gameState.currentPlayerIndex]
-        const fallbackBid = decideBid(aiPlayer.hand, gameState.biddingState.highestBid, gameState.aiDifficulty)
+        const fallbackBid = decideBid(
+          aiPlayer.hand,
+          gameState.biddingState.highestBid,
+          gameState.aiDifficulty,
+        )
 
         void requestAIDecision({
           state: gameState,
           playerId: playerIndex,
           mode: 'bid',
           fallbackBid,
-        }).then(decision => {
+        }).then((decision) => {
           if (cancelled || decision.action !== 'bid') return
-          setGameState(prev => {
-            if (prev.phase !== 'bidding' || prev.currentPlayerIndex !== playerIndex) return prev
+          setGameState((prev) => {
+            if (
+              prev.phase !== 'bidding' ||
+              prev.currentPlayerIndex !== playerIndex
+            )
+              return prev
             return placeBid(prev, playerIndex, decision.bid)
           })
         })
@@ -189,9 +319,12 @@ export function DoudizhuGame() {
           aiPlayer.hand,
           gameState.playingState.lastPlay,
           aiPlayer.isLandlord,
-          gameState.aiDifficulty
+          gameState.aiDifficulty,
         )
-        const candidates = createPlayCandidates(aiPlayer.hand, gameState.playingState.lastPlay)
+        const candidates = createPlayCandidates(
+          aiPlayer.hand,
+          gameState.playingState.lastPlay,
+        )
 
         void requestAIDecision({
           state: gameState,
@@ -199,15 +332,22 @@ export function DoudizhuGame() {
           mode: 'play',
           candidates,
           fallback,
-        }).then(decision => {
+        }).then((decision) => {
           if (cancelled) return
 
           if (decision.action === 'play') {
-            setGameState(prev => {
-              if (prev.phase !== 'playing' || prev.currentPlayerIndex !== playerIndex) return prev
+            setGameState((prev) => {
+              if (
+                prev.phase !== 'playing' ||
+                prev.currentPlayerIndex !== playerIndex
+              )
+                return prev
               const next = playCards(prev, playerIndex, decision.cards)
               if (next !== prev && soundEnabled.current) {
-                const comb = next.playingState.playHistory[next.playingState.playHistory.length - 1]?.combination
+                const comb =
+                  next.playingState.playHistory[
+                    next.playingState.playHistory.length - 1
+                  ]?.combination
                 if (comb?.type === 'bomb' || comb?.type === 'rocket') {
                   SoundEffects.bomb()
                 } else {
@@ -217,8 +357,12 @@ export function DoudizhuGame() {
               return next
             })
           } else if (decision.action === 'pass') {
-            setGameState(prev => {
-              if (prev.phase !== 'playing' || prev.currentPlayerIndex !== playerIndex) return prev
+            setGameState((prev) => {
+              if (
+                prev.phase !== 'playing' ||
+                prev.currentPlayerIndex !== playerIndex
+              )
+                return prev
               const next = passTurn(prev, playerIndex)
               if (next !== prev && soundEnabled.current) SoundEffects.pass()
               return next
@@ -276,18 +420,28 @@ export function DoudizhuGame() {
             <div className="start-kicker">湖州四人斗地主</div>
             <h1>选择难度</h1>
             <div className="start-difficulty-options" aria-label="选择电脑难度">
-              {(['easy', 'medium', 'hard'] as AIDifficulty[]).map(difficulty => (
-                <button
-                  key={difficulty}
-                  type="button"
-                  className={`start-difficulty-btn ${selectedDifficulty === difficulty ? 'active' : ''}`}
-                  onClick={() => setSelectedDifficulty(difficulty)}
-                >
-                  {difficulty === 'easy' ? '简单' : difficulty === 'medium' ? '中等' : '困难'}
-                </button>
-              ))}
+              {(['easy', 'medium', 'hard'] as AIDifficulty[]).map(
+                (difficulty) => (
+                  <button
+                    key={difficulty}
+                    type="button"
+                    className={`start-difficulty-btn ${selectedDifficulty === difficulty ? 'active' : ''}`}
+                    onClick={() => setSelectedDifficulty(difficulty)}
+                  >
+                    {difficulty === 'easy'
+                      ? '简单'
+                      : difficulty === 'medium'
+                        ? '中等'
+                        : '困难'}
+                  </button>
+                ),
+              )}
             </div>
-            <button type="button" className="start-game-btn" onClick={startGame}>
+            <button
+              type="button"
+              className="start-game-btn"
+              onClick={startGame}
+            >
               开始游戏
             </button>
           </div>
@@ -304,17 +458,27 @@ export function DoudizhuGame() {
         currentPlayerName={currentPlayer.name}
         roundNumber={gameState.roundNumber}
         aiDifficulty={gameState.aiDifficulty}
-        showBottom={gameState.phase === 'playing' || gameState.phase === 'roundEnd'}
+        showBottom={
+          gameState.phase === 'playing' || gameState.phase === 'roundEnd'
+        }
       />
 
-      <div className={`table-container ${humanHandWrapped ? 'hand-wrapped' : ''}`}>
+      <div
+        className={`table-container ${humanHandWrapped ? 'hand-wrapped' : ''}`}
+      >
+        {analysisStatus !== 'idle' && (
+          <AIAnalysisPanel status={analysisStatus} result={analysisResult} />
+        )}
+
         {/* Top - 电脑B (index 2) */}
         <PlayerSeat
           player={gameState.players[2]}
           isCurrentTurn={gameState.currentPlayerIndex === 2}
           position="top"
           isThinking={isAITurn(2)}
-          lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(2) : null}
+          lastPlay={
+            gameState.phase === 'playing' ? getLastPlayForPlayer(2) : null
+          }
           humanPlayerId={0}
         />
 
@@ -324,7 +488,9 @@ export function DoudizhuGame() {
           isCurrentTurn={gameState.currentPlayerIndex === 1}
           position="left"
           isThinking={isAITurn(1)}
-          lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(1) : null}
+          lastPlay={
+            gameState.phase === 'playing' ? getLastPlayForPlayer(1) : null
+          }
           humanPlayerId={0}
         />
 
@@ -334,7 +500,9 @@ export function DoudizhuGame() {
           isCurrentTurn={gameState.currentPlayerIndex === 3}
           position="right"
           isThinking={isAITurn(3)}
-          lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(3) : null}
+          lastPlay={
+            gameState.phase === 'playing' ? getLastPlayForPlayer(3) : null
+          }
           humanPlayerId={0}
         />
 
@@ -357,7 +525,9 @@ export function DoudizhuGame() {
             isCurrentTurn={gameState.currentPlayerIndex === 0}
             position="bottom"
             isThinking={false}
-            lastPlay={gameState.phase === 'playing' ? getLastPlayForPlayer(0) : null}
+            lastPlay={
+              gameState.phase === 'playing' ? getLastPlayForPlayer(0) : null
+            }
             humanPlayerId={0}
           />
         </div>
@@ -385,7 +555,10 @@ export function DoudizhuGame() {
               <button
                 className="pass-btn"
                 onClick={handlePass}
-                disabled={gameState.playingState.lastPlayerIndex === 0 || !gameState.playingState.lastPlay}
+                disabled={
+                  gameState.playingState.lastPlayerIndex === 0 ||
+                  !gameState.playingState.lastPlay
+                }
               >
                 不出
               </button>

@@ -16,14 +16,33 @@ export interface PlayCandidate {
   labels: string[]
 }
 
+export interface AIAnalysis {
+  why: string
+  opponent: string
+  factors: string[]
+}
+
+export type AIAnalysisResult = {
+  status: 'ready' | 'unavailable'
+  action: 'play' | 'pass'
+  candidate: PlayCandidate | null
+  analysis: AIAnalysis | null
+  source: DecisionSource
+  message?: string
+}
+
 type DeepSeekDecisionResponse = {
   action?: unknown
   bid?: unknown
   candidateId?: unknown
   tableTalk?: unknown
+  analysis?: unknown
 }
 
-type DecisionFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+export type DecisionFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>
 
 type BidDecisionOptions = {
   state: GameState
@@ -42,19 +61,44 @@ type PlayDecisionOptions = {
   fetcher?: DecisionFetch
 }
 
-export type AIDecision =
-  | { action: 'bid'; bid: number; source: DecisionSource }
-  | { action: 'play'; cards: Card[]; source: DecisionSource }
-  | { action: 'pass'; source: DecisionSource }
+export type AnalysisDecisionOptions = {
+  state: GameState
+  playerId: number
+  mode: 'analysis'
+  candidates: PlayCandidate[]
+  fallback: Card[] | null
+  fetcher?: DecisionFetch
+}
 
-export function createPlayCandidates(hand: Card[], lastPlay: Combination | null): PlayCandidate[] {
+export type AIDecision =
+  | {
+      action: 'bid'
+      bid: number
+      source: DecisionSource
+      analysis?: AIAnalysis
+    }
+  | {
+      action: 'play'
+      cards: Card[]
+      source: DecisionSource
+      analysis?: AIAnalysis
+    }
+  | { action: 'pass'; source: DecisionSource; analysis?: AIAnalysis }
+
+export function createPlayCandidates(
+  hand: Card[],
+  lastPlay: Combination | null,
+): PlayCandidate[] {
   return findValidPlays(hand, lastPlay)
-    .map(cards => {
+    .map((cards) => {
       const combination = identifyCombination(cards)
       if (!combination) return null
 
       return {
-        id: `play-${cards.map(card => card.id).sort((a, b) => a - b).join('-')}`,
+        id: `play-${cards
+          .map((card) => card.id)
+          .sort((a, b) => a - b)
+          .join('-')}`,
         cards,
         combination: {
           type: combination.type,
@@ -71,16 +115,72 @@ export function createPlayCandidates(hand: Card[], lastPlay: Combination | null)
 
 export function pickDeepSeekPlay(
   response: DeepSeekDecisionResponse,
-  candidates: PlayCandidate[]
+  candidates: PlayCandidate[],
 ): Card[] | null {
   if (response.action !== 'play' || typeof response.candidateId !== 'string') {
     return null
   }
 
-  return candidates.find(candidate => candidate.id === response.candidateId)?.cards ?? null
+  return (
+    candidates.find((candidate) => candidate.id === response.candidateId)
+      ?.cards ?? null
+  )
 }
 
-export async function requestAIDecision(options: BidDecisionOptions | PlayDecisionOptions): Promise<AIDecision> {
+function parseAIAnalysis(value: unknown): AIAnalysis | null {
+  if (!value || typeof value !== 'object') return null
+  const record = value as Record<string, unknown>
+  if (
+    typeof record.why !== 'string' ||
+    typeof record.opponent !== 'string' ||
+    !Array.isArray(record.factors)
+  ) {
+    return null
+  }
+
+  const why = record.why.trim().slice(0, 120)
+  const opponent = record.opponent.trim().slice(0, 120)
+  const factors = record.factors
+    .filter((factor): factor is string => typeof factor === 'string')
+    .map((factor) => factor.trim().slice(0, 24))
+    .filter(Boolean)
+    .slice(0, 3)
+
+  if (!why || !opponent) return null
+  return { why, opponent, factors }
+}
+
+function findCandidateForCards(
+  cards: Card[] | null,
+  candidates: PlayCandidate[],
+): PlayCandidate | null {
+  if (!cards) return null
+  const candidateId = `play-${cards
+    .map((card) => card.id)
+    .sort((a, b) => a - b)
+    .join('-')}`
+  return candidates.find((candidate) => candidate.id === candidateId) ?? null
+}
+
+function unavailableAnalysisResult(
+  fallback: Card[] | null,
+  candidates: PlayCandidate[],
+  message = '分析暂不可用，你可以按自己的判断出牌',
+): AIAnalysisResult {
+  const candidate = findCandidateForCards(fallback, candidates)
+  return {
+    status: 'unavailable',
+    action: candidate ? 'play' : 'pass',
+    candidate,
+    analysis: null,
+    source: 'fallback',
+    message,
+  }
+}
+
+export async function requestAIDecision(
+  options: BidDecisionOptions | PlayDecisionOptions,
+): Promise<AIDecision> {
   const fallback = createFallbackDecision(options)
 
   try {
@@ -93,14 +193,74 @@ export async function requestAIDecision(options: BidDecisionOptions | PlayDecisi
 
     if (!response.ok) return fallback
 
-    const data = await response.json() as DeepSeekDecisionResponse
+    const data = (await response.json()) as DeepSeekDecisionResponse
     return validateDeepSeekDecision(data, options) ?? fallback
   } catch {
     return fallback
   }
 }
 
-function createFallbackDecision(options: BidDecisionOptions | PlayDecisionOptions): AIDecision {
+function validateAIAnalysis(
+  data: DeepSeekDecisionResponse,
+  options: AnalysisDecisionOptions,
+): AIAnalysisResult | null {
+  const analysis = parseAIAnalysis(data.analysis)
+
+  if (
+    data.action === 'pass' &&
+    canPlayerPass(options.state, options.playerId)
+  ) {
+    return {
+      status: 'ready',
+      action: 'pass',
+      candidate: null,
+      analysis,
+      source: 'deepseek',
+    }
+  }
+
+  if (data.action !== 'play' || typeof data.candidateId !== 'string')
+    return null
+  const candidate = options.candidates.find(
+    (item) => item.id === data.candidateId,
+  )
+  if (!candidate) return null
+
+  return {
+    status: 'ready',
+    action: 'play',
+    candidate,
+    analysis,
+    source: 'deepseek',
+  }
+}
+
+export async function requestAIAnalysis(
+  options: AnalysisDecisionOptions,
+): Promise<AIAnalysisResult> {
+  const fallback = () =>
+    unavailableAnalysisResult(options.fallback, options.candidates)
+
+  try {
+    const fetcher = options.fetcher ?? fetch
+    const response = await fetcher('/api/deepseek/decision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createDecisionPayload(options)),
+    })
+
+    if (!response.ok) return fallback()
+
+    const data = (await response.json()) as DeepSeekDecisionResponse
+    return validateAIAnalysis(data, options) ?? fallback()
+  } catch {
+    return fallback()
+  }
+}
+
+function createFallbackDecision(
+  options: BidDecisionOptions | PlayDecisionOptions,
+): AIDecision {
   if (options.mode === 'bid') {
     return { action: 'bid', bid: options.fallbackBid, source: 'fallback' }
   }
@@ -114,42 +274,70 @@ function createFallbackDecision(options: BidDecisionOptions | PlayDecisionOption
 
 function validateDeepSeekDecision(
   data: DeepSeekDecisionResponse,
-  options: BidDecisionOptions | PlayDecisionOptions
+  options: BidDecisionOptions | PlayDecisionOptions,
 ): AIDecision | null {
+  const analysis = parseAIAnalysis(data.analysis)
+
   if (options.mode === 'bid') {
     if (data.action !== 'bid' || typeof data.bid !== 'number') return null
     const bid = Math.trunc(data.bid)
     const currentBid = options.state.biddingState.highestBid
-    if (bid === 0) return { action: 'bid', bid, source: 'deepseek' }
-    if (bid > currentBid && bid >= 1 && bid <= 3) return { action: 'bid', bid, source: 'deepseek' }
+    if (bid === 0)
+      return withAnalysis({ action: 'bid', bid, source: 'deepseek' }, analysis)
+    if (bid > currentBid && bid >= 1 && bid <= 3) {
+      return withAnalysis({ action: 'bid', bid, source: 'deepseek' }, analysis)
+    }
     return null
   }
 
-  if (data.action === 'pass' && canPlayerPass(options.state, options.playerId)) {
-    return { action: 'pass', source: 'deepseek' }
+  if (
+    data.action === 'pass' &&
+    canPlayerPass(options.state, options.playerId)
+  ) {
+    return withAnalysis({ action: 'pass', source: 'deepseek' }, analysis)
   }
 
   const cards = pickDeepSeekPlay(data, options.candidates)
-  return cards ? { action: 'play', cards, source: 'deepseek' } : null
+  return cards
+    ? withAnalysis({ action: 'play', cards, source: 'deepseek' }, analysis)
+    : null
+}
+
+function withAnalysis(
+  decision: AIDecision,
+  analysis: AIAnalysis | null,
+): AIDecision {
+  return analysis ? { ...decision, analysis } : decision
 }
 
 function canPlayerPass(state: GameState, playerId: number): boolean {
-  return Boolean(state.playingState.lastPlay) && state.playingState.lastPlayerIndex !== playerId
+  return (
+    Boolean(state.playingState.lastPlay) &&
+    state.playingState.lastPlayerIndex !== playerId
+  )
 }
 
 function comparePlayCandidates(a: PlayCandidate, b: PlayCandidate): number {
   return comparePlayCandidateStrength(a, b)
 }
 
-function createDecisionPayload(options: BidDecisionOptions | PlayDecisionOptions) {
+function createDecisionPayload(
+  options: BidDecisionOptions | PlayDecisionOptions | AnalysisDecisionOptions,
+) {
   const player = options.state.players[options.playerId]
-  const recentHistory = options.state.playingState.playHistory.slice(-8).map(record => ({
-    playerId: record.playerId,
-    playerName: options.state.players[record.playerId]?.name ?? `玩家${record.playerId}`,
-    passed: record.passed,
-    cards: record.cards.map(formatCard),
-    combination: record.combination ? summarizeCombination(record.combination) : null,
-  }))
+  const recentHistory = options.state.playingState.playHistory
+    .slice(-8)
+    .map((record) => ({
+      playerId: record.playerId,
+      playerName:
+        options.state.players[record.playerId]?.name ??
+        `玩家${record.playerId}`,
+      passed: record.passed,
+      cards: record.cards.map(formatCard),
+      combination: record.combination
+        ? summarizeCombination(record.combination)
+        : null,
+    }))
 
   return {
     mode: options.mode,
@@ -160,27 +348,34 @@ function createDecisionPayload(options: BidDecisionOptions | PlayDecisionOptions
     difficulty: options.state.aiDifficulty,
     currentHighestBid: options.state.biddingState.highestBid,
     landlordIndex: options.state.landlordIndex,
-    landlordName: options.state.players[options.state.landlordIndex]?.name ?? null,
+    landlordName:
+      options.state.players[options.state.landlordIndex]?.name ?? null,
     isLandlord: player.isLandlord,
     multiplier: options.state.multiplier,
     hand: player.hand.map(formatCard),
-    remainingCards: options.state.players.map(otherPlayer => ({
+    remainingCards: options.state.players.map((otherPlayer) => ({
       playerId: otherPlayer.id,
       name: otherPlayer.name,
       count: otherPlayer.hand.length,
       isLandlord: otherPlayer.isLandlord,
     })),
-    lastPlay: options.state.playingState.lastPlay ? summarizeCombination(options.state.playingState.lastPlay) : null,
+    lastPlay: options.state.playingState.lastPlay
+      ? summarizeCombination(options.state.playingState.lastPlay)
+      : null,
     lastPlayerIndex: options.state.playingState.lastPlayerIndex,
     recentHistory,
-    candidates: options.mode === 'play'
-      ? options.candidates.map(candidate => ({
-        id: candidate.id,
-        combination: candidate.combination,
-        labels: candidate.labels,
-      }))
-      : undefined,
-    legalBids: options.mode === 'bid' ? legalBids(options.state.biddingState.highestBid) : undefined,
+    candidates:
+      options.mode === 'play' || options.mode === 'analysis'
+        ? options.candidates.map((candidate) => ({
+            id: candidate.id,
+            combination: candidate.combination,
+            labels: candidate.labels,
+          }))
+        : undefined,
+    legalBids:
+      options.mode === 'bid'
+        ? legalBids(options.state.biddingState.highestBid)
+        : undefined,
   }
 }
 
@@ -195,7 +390,7 @@ function summarizeCombination(combination: Combination) {
 }
 
 function legalBids(currentHighestBid: number): number[] {
-  return [0, 1, 2, 3].filter(bid => bid === 0 || bid > currentHighestBid)
+  return [0, 1, 2, 3].filter((bid) => bid === 0 || bid > currentHighestBid)
 }
 
 function getPlayerPersonality(playerId: number): string {
