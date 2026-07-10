@@ -1,6 +1,9 @@
 import type { Card, Combination, GameState } from './types.ts'
 import { findValidPlays, identifyCombination } from './cardLogic.ts'
-import { comparePlayCandidateStrength } from './aiStrategy.ts'
+import {
+  comparePlayCandidateStrength,
+  filterPlaysPreservingBombs,
+} from './aiStrategy.ts'
 
 type DecisionSource = 'deepseek' | 'fallback'
 
@@ -89,7 +92,7 @@ export function createPlayCandidates(
   hand: Card[],
   lastPlay: Combination | null,
 ): PlayCandidate[] {
-  return findValidPlays(hand, lastPlay)
+  return filterPlaysPreservingBombs(hand, findValidPlays(hand, lastPlay))
     .map((cards) => {
       const combination = identifyCombination(cards)
       if (!combination) return null

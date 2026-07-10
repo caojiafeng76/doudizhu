@@ -1,6 +1,9 @@
 import type { Card, Combination, AIDifficulty } from './types'
 import { findValidPlays } from './cardLogic'
-import { sortPlaysByStrength } from './aiStrategy.ts'
+import {
+  filterPlaysPreservingBombs,
+  sortPlaysByStrength,
+} from './aiStrategy.ts'
 
 export function evaluateHandStrength(hand: Card[]): number {
   let score = 0
@@ -62,7 +65,9 @@ export function aiPlayTurn(
     return openPlay(hand, difficulty)
   }
 
-  const beats = sortPlaysByStrength(findValidPlays(hand, lastPlay))
+  const beats = sortPlaysByStrength(
+    filterPlaysPreservingBombs(hand, findValidPlays(hand, lastPlay)),
+  )
   if (beats.length === 0) return null
 
   if (difficulty === 'easy') {

@@ -406,7 +406,7 @@
   color: var(--color-text-primary);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(8px);
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 2;
 }
 

@@ -22,4 +22,13 @@ describe('AI analysis panel helpers', () => {
   test('formats a missing candidate as a pass recommendation', () => {
     expect(formatAIAnalysisRecommendation(null)).toBe('不出')
   })
+
+  test('allows pointer input for scrolling the analysis panel', async () => {
+    const css = await Bun.file(
+      new URL('../src/game.css', import.meta.url),
+    ).text()
+    const panelRule = css.match(/\.ai-analysis-panel\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+
+    expect(panelRule).toContain('pointer-events: auto;')
+  })
 })

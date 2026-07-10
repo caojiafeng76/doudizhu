@@ -44,4 +44,22 @@ describe('local AI play strategy', () => {
 
     expect(aiPlayTurn(hand, lastPlay, false, 'hard')).toEqual(hand)
   })
+
+  test('does not split a bomb when an ordinary response exists', () => {
+    const hand = [
+      card(1, 'K', 13),
+      card(2, 'K', 13, 'heart'),
+      card(3, 'K', 13, 'diamond'),
+      card(4, 'K', 13, 'club'),
+      card(5, 'A', 14),
+    ]
+    const lastPlay: Combination = {
+      type: 'single',
+      mainValue: 12,
+      length: 1,
+      cards: [card(99, 'Q', 12)],
+    }
+
+    expect(aiPlayTurn(hand, lastPlay, false, 'medium')).toEqual([hand[4]])
+  })
 })

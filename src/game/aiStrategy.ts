@@ -52,6 +52,34 @@ export function sortPlaysByStrength(plays: Card[][]): Card[][] {
   })
 }
 
+export function filterPlaysPreservingBombs(
+  hand: Card[],
+  plays: Card[][],
+): Card[][] {
+  const handCounts = countCardValues(hand)
+
+  return plays.filter((play) => {
+    const playCounts = countCardValues(play)
+
+    for (const [value, handCount] of handCounts) {
+      const playCount = playCounts.get(value) ?? 0
+      if (handCount >= 4 && playCount > 0 && playCount < handCount) {
+        return false
+      }
+    }
+
+    return true
+  })
+}
+
+function countCardValues(cards: Card[]): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const card of cards) {
+    counts.set(card.value, (counts.get(card.value) ?? 0) + 1)
+  }
+  return counts
+}
+
 function candidatePowerCost(candidate: PlayCandidateSummary): number {
   if (candidate.combination.type === 'rocket') return 3
   if (candidate.combination.type === 'bomb') return 2
