@@ -128,3 +128,131 @@ export const SoundEffects = {
     playTone(1000, 0.04, 'square', 0.05)
   },
 }
+
+/**
+ * Procedural background music — a gentle Chinese pentatonic loop.
+ * Generated entirely with the Web Audio API; no external files needed.
+ * Melody + bass over a I–vi–ii–V progression in C major pentatonic,
+ * matching the "深夜牌馆" parlor aesthetic.
+ */
+class BackgroundMusicController {
+  private masterGain: GainNode | null = null
+  private timer: number | null = null
+  private step = 0
+  private variation = 0
+  private playing = false
+
+  // C major pentatonic across two octaves (Hz)
+  private readonly scale = [
+    261.63, 293.66, 329.63, 392.0, 440.0, // C4 D4 E4 G4 A4
+    523.25, 587.33, 659.25, 783.99, 880.0, // C5 D5 E5 G5 A5
+  ]
+  // Bass roots per bar: I(C) vi(A) ii(D) V(G)
+  private readonly bass = [130.81, 110.0, 146.83, 196.0]
+  // Melody patterns (scale indices, -1 = rest). Two variations alternate
+  // so the loop breathes instead of feeling mechanical.
+  private readonly patterns: number[][] = [
+    [5, 4, 3, 4, 7, 5, 4, 2, 4, 5, 7, 6, 5, 3, 2, -1],
+    [5, 7, 9, 7, 7, 5, 4, 3, 6, 7, 6, 5, 4, 3, 2, -1],
+  ]
+
+  start() {
+    if (this.playing) return
+    try {
+      const ctx = getCtx()
+      if (ctx.state === 'suspended') void ctx.resume()
+      this.masterGain = ctx.createGain()
+      this.masterGain.gain.setValueAtTime(0.0001, ctx.currentTime)
+      // gentle fade-in so the loop never cuts in abruptly
+      this.masterGain.gain.exponentialRampToValueAtTime(
+        0.05,
+        ctx.currentTime + 1.5,
+      )
+      this.masterGain.connect(ctx.destination)
+      this.playing = true
+      this.step = 0
+      this.variation = 0
+      this.tick()
+    } catch {
+      // Audio not available
+    }
+  }
+
+  private tick() {
+    if (!this.playing) return
+    const pattern = this.patterns[this.variation]
+    const idx = pattern[this.step]
+    if (idx >= 0 && idx < this.scale.length) {
+      this.note(this.scale[idx], 0.34, 'triangle', 0.5)
+    }
+    // bass note on each bar downbeat
+    if (this.step % 4 === 0) {
+      const bar = Math.floor(this.step / 4) % this.bass.length
+      this.note(this.bass[bar], 0.9, 'sine', 0.42)
+    }
+    this.step += 1
+    if (this.step >= pattern.length) {
+      this.step = 0
+      this.variation = (this.variation + 1) % this.patterns.length
+    }
+    this.timer = window.setTimeout(() => this.tick(), 330)
+  }
+
+  private note(
+    freq: number,
+    duration: number,
+    type: OscillatorType,
+    level: number,
+  ) {
+    if (!this.masterGain) return
+    try {
+      const ctx = getCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = type
+      osc.frequency.setValueAtTime(freq, ctx.currentTime)
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+      gain.gain.linearRampToValueAtTime(level, ctx.currentTime + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration)
+      osc.connect(gain)
+      gain.connect(this.masterGain)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + duration + 0.05)
+    } catch {
+      // ignore
+    }
+  }
+
+  stop() {
+    this.playing = false
+    if (this.timer !== null) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+    if (this.masterGain) {
+      try {
+        const ctx = getCtx()
+        const g = this.masterGain
+        g.gain.cancelScheduledValues(ctx.currentTime)
+        g.gain.setValueAtTime(g.gain.value, ctx.currentTime)
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4)
+        window.setTimeout(() => {
+          try {
+            g.disconnect()
+          } catch {
+            // ignore
+          }
+        }, 500)
+      } catch {
+        // ignore
+      }
+      this.masterGain = null
+    }
+  }
+
+  isPlaying() {
+    return this.playing
+  }
+}
+
+export const BackgroundMusic = new BackgroundMusicController()

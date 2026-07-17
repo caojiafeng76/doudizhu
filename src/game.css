@@ -142,6 +142,42 @@
   gap: 12px;
 }
 
+/* Music on/off toggle in the header */
+.music-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 168, 67, 0.3);
+  background: rgba(8, 6, 4, 0.5);
+  color: var(--color-gold);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.music-toggle:hover {
+  border-color: var(--color-gold);
+  background: rgba(212, 168, 67, 0.16);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 168, 67, 0.2);
+}
+
+.music-toggle.off {
+  color: var(--color-text-dim);
+  border-color: rgba(122, 106, 90, 0.3);
+}
+
+.music-toggle.off:hover {
+  color: var(--color-text-secondary);
+  border-color: rgba(122, 106, 90, 0.5);
+  background: rgba(122, 106, 90, 0.12);
+  box-shadow: none;
+}
+
 .round-number,
 .multiplier {
   font-family: var(--font-display);

@@ -8,6 +8,8 @@ interface GameHeaderProps {
   roundNumber: number
   aiDifficulty: AIDifficulty
   showBottom: boolean
+  musicEnabled: boolean
+  onToggleMusic: () => void
 }
 
 const DIFFICULTY_LABELS: Record<AIDifficulty, string> = {
@@ -23,6 +25,8 @@ export function GameHeader({
   roundNumber,
   aiDifficulty,
   showBottom,
+  musicEnabled,
+  onToggleMusic,
 }: GameHeaderProps) {
   return (
     <div className="game-header">
@@ -41,6 +45,34 @@ export function GameHeader({
         )}
       </div>
       <div className="header-right">
+        <button
+          type="button"
+          className={`music-toggle ${musicEnabled ? 'on' : 'off'}`}
+          onClick={onToggleMusic}
+          aria-label={musicEnabled ? '关闭背景音乐' : '开启背景音乐'}
+          aria-pressed={musicEnabled}
+          title={musicEnabled ? '背景音乐：开' : '背景音乐：关'}
+        >
+          {musicEnabled ? (
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 5v8.55A4 4 0 1 0 14 17V9h3a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 0z"
+              />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 5v8.55A4 4 0 1 0 14 17V9h3a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 0z"
+              />
+              <path
+                fill="currentColor"
+                d="M3.7 3.3a1 1 0 0 0-1.4 1.4l16 16a1 1 0 0 0 1.4-1.4z"
+              />
+            </svg>
+          )}
+        </button>
         <span className="current-turn">
           <span className="turn-indicator" />
           {currentPlayerName}

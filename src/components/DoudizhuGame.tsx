@@ -23,7 +23,7 @@ import { PlayerSeat } from './PlayerSeat'
 import { GameHeader } from './GameHeader'
 import { ScoreBoard } from './ScoreBoard'
 import { ResultModal } from './ResultModal'
-import { SoundEffects } from '../game/sounds'
+import { SoundEffects, BackgroundMusic } from '../game/sounds'
 
 const AI_DELAY = 800
 const HUMAN_HAND_WRAP_THRESHOLD = 30
@@ -47,6 +47,7 @@ export function DoudizhuGame() {
     result: null,
   })
   const soundEnabled = useRef(true)
+  const [musicEnabled, setMusicEnabled] = useState(true)
   const noticeTimerRef = useRef<number | null>(null)
   const analysisRequestIdRef = useRef(0)
 
@@ -62,7 +63,17 @@ export function DoudizhuGame() {
     setSelectedCardIds([])
     setPlayNotice(null)
     clearAIAnalysis()
+    BackgroundMusic.start()
   }, [clearAIAnalysis, selectedDifficulty])
+
+  const toggleMusic = useCallback(() => {
+    setMusicEnabled((prev) => {
+      const next = !prev
+      if (next) BackgroundMusic.start()
+      else BackgroundMusic.stop()
+      return next
+    })
+  }, [])
 
   const humanPlayer = gameState.players[0]
   const isHumanTurn =
@@ -106,6 +117,13 @@ export function DoudizhuGame() {
       if (noticeTimerRef.current !== null) {
         window.clearTimeout(noticeTimerRef.current)
       }
+    }
+  }, [])
+
+  // stop background music when the game component unmounts
+  useEffect(() => {
+    return () => {
+      BackgroundMusic.stop()
     }
   }, [])
 
@@ -461,6 +479,8 @@ export function DoudizhuGame() {
         showBottom={
           gameState.phase === 'playing' || gameState.phase === 'roundEnd'
         }
+        musicEnabled={musicEnabled}
+        onToggleMusic={toggleMusic}
       />
 
       <div
